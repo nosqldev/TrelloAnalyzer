@@ -21,6 +21,7 @@
 import json
 import urllib2 
 import re
+import sys
 
 # {{{ global config
 g_app_key = None
@@ -82,7 +83,16 @@ def read_config(filepath):
     global g_token
     global g_board_id
 
-    f = open(filepath, "r")
+    f = None
+    try:
+        f = open(filepath, "r")
+    except IOError as e:
+        print("OOPS: " + str(e))
+        print('''Perhaps you need:
+    1. cp trello.json config.json
+    2. fill config.json''')
+        sys.exit(-1)
+
     config = json.load(f)
     f.close()
 
@@ -103,9 +113,9 @@ def do_request(url):
         response = urllib2.urlopen(request)
         content = response.read()
     except urllib2.HTTPError as e:
-        print "http error: " + str(e)
+        print("http error: " + str(e))
     except Exception as e:
-        print "error: " + str(e)
+        print("error: " + str(e))
 
     if content is None:
         return []
@@ -156,8 +166,8 @@ def groupby_task():
     pass
 
 def show(list_pattern, stat_result):
-    print colors.fg.red, "LIST IS: [", list_pattern, "]" 
-    print colors.fg.lightcyan, stat_result, colors.reset
+    print(colors.fg.red, "LIST IS: [", list_pattern, "]")
+    print(colors.fg.lightcyan, stat_result, colors.reset)
 
 def compute_list(list_pattern):
     all_cards_info = []
@@ -169,7 +179,7 @@ def compute_list(list_pattern):
     show(list_pattern, sum_workloads(all_cards_info))
 
 def main():
-    read_config("./trello.json")
+    read_config("./config.json")
     compute_list("^Done$")
 
 if __name__ == '__main__':
