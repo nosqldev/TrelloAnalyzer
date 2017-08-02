@@ -19,7 +19,7 @@
 # Get token from: https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&name=Server%20Token&key={APP-KEY}
 
 import json
-import urllib2 
+import urllib.request
 import re
 import sys
 
@@ -29,7 +29,7 @@ g_token = None
 g_board_id = None
 # }}}
 # {{{ pattern config
-workload_pattern = u'[(（]\s*(\d+)\s*pt[)）]'
+workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*h\s*[)）]'
 # }}}
 # {{{ class colors
 class colors:
@@ -106,13 +106,13 @@ def basic_replace(url):
     return url
 
 def do_request(url):
-    request = urllib2.Request(url)
+    request = urllib.request.Request(url)
     content = None
 
     try:
-        response = urllib2.urlopen(request)
-        content = response.read()
-    except urllib2.HTTPError as e:
+        response = urllib.request.urlopen(request)
+        content = response.read().decode()
+    except urllib.request.HTTPError as e:
         print("http error: " + str(e))
     except Exception as e:
         print("error: " + str(e))
@@ -151,9 +151,9 @@ def sum_workloads(cards_info):
 
     for card_info in cards_info:
         result = compiled_pattern.findall(card_info[1])
-        #print card_info[1], result
+        print (card_info[1], result)
         if len(result) > 0:
-            counter['total'] += int(result[0])
+            counter['total'] += float(result[0])
         else:
             counter['none'] += 1
 
