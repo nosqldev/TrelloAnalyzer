@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 # © Copyright 2017 jingmi. All Rights Reserved.
@@ -14,6 +14,8 @@
 # 2. Fill the blank function: groupby_author(), groupby_task()
 # 3. Handle more task type, e.g: 新增/new/临时
 # 4. Be compatible with Python 2.x and Python 3.x
+# 5. Write test code for this project
+# 6. Provide flexible pattern to match titles such as: "Refactor the data access object(1h) (3h)"
 
 # Get your app-key from: https://trello.com/app-key
 # Get token from: https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&name=Server%20Token&key={APP-KEY}
