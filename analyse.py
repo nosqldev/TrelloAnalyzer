@@ -42,39 +42,39 @@ class colors:
     and invisible work with the main class
     i.e. colors.bold'''
 
-    reset='\033[0m'
-    bold='\033[01m'
-    disable='\033[02m'
-    underline='\033[04m'
-    reverse='\033[07m'
-    strikethrough='\033[09m'
-    invisible='\033[08m'
+    reset = '\033[0m'
+    bold = '\033[01m'
+    disable = '\033[02m'
+    underline = '\033[04m'
+    reverse = '\033[07m'
+    strikethrough = '\033[09m'
+    invisible = '\033[08m'
     class fg:
-        black='\033[30m'
-        red='\033[31m'
-        green='\033[32m'
-        orange='\033[33m'
-        blue='\033[34m'
-        purple='\033[35m'
-        cyan='\033[36m'
-        lightgrey='\033[37m'
-        lightwhite='\033[1;37;40m'
-        darkgrey='\033[90m'
-        lightred='\033[91m'
-        lightgreen='\033[92m'
-        yellow='\033[93m'
-        lightblue='\033[94m'
-        pink='\033[95m'
-        lightcyan='\033[96m'
+        black = '\033[30m'
+        red = '\033[31m'
+        green = '\033[32m'
+        orange = '\033[33m'
+        blue = '\033[34m'
+        purple = '\033[35m'
+        cyan = '\033[36m'
+        lightgrey = '\033[37m'
+        lightwhite = '\033[1;37;40m'
+        darkgrey = '\033[90m'
+        lightred = '\033[91m'
+        lightgreen = '\033[92m'
+        yellow = '\033[93m'
+        lightblue = '\033[94m'
+        pink = '\033[95m'
+        lightcyan = '\033[96m'
     class bg:
-        black='\033[40m'
-        red='\033[41m'
-        green='\033[42m'
-        orange='\033[43m'
-        blue='\033[44m'
-        purple='\033[45m'
-        cyan='\033[46m'
-        lightgrey='\033[47m'
+        black = '\033[40m'
+        red = '\033[41m'
+        green = '\033[42m'
+        orange = '\033[43m'
+        blue = '\033[44m'
+        purple = '\033[45m'
+        cyan = '\033[46m'
+        lightgrey = '\033[47m'
 
 # }}}
 
@@ -140,24 +140,67 @@ def fetch_cards(list_id):
     url = basic_replace(url)
     url = url.replace("_LIST_ID_", list_id)
     body = do_request(url)
-    cards_info = [(item['id'], item['name']) for item in body]
+    cards_info = [(item['id'], item['name'], item['idMembers'][0]) for item in body]
 
     return cards_info
 
+def fetch_board_members():
+    url = 'https://api.trello.com/1/boards/_BOARDID_/members?key=_APP_KEY_&token=_TOKEN_'
+    url = basic_replace(url)
+    url = url.replace("_BOARDID_", g_board_id)
+    body = do_request(url)
+    member_info = []
+
+    for item in body:
+        member_info.append({'id': item['id'], 'fullName': item['fullName']})
+    print(member_info)
+
+    return member_info
+
+def set_cardMembers(card_members, memberId, result):
+    if len(card_members) > 0:
+
+        isMemberExist = False
+
+        for member in card_members:
+            if member['id'] == str(memberId):
+                member['result'] += result
+                isMemberExist = True
+                break;
+        if isMemberExist is False:
+            card_members.append({'id': memberId, 'result': result})
+    else:
+        card_members.append({'id': memberId, 'result': result})
+
+def get_members_counter(card_members):
+    members_counter = []
+
+    for card_member in card_members:
+        for board_member in board_members:
+            if card_member['id'] == board_member['id']:
+                members_counter.append({'fullName': board_member['fullName'], 'time': card_member['result']})
+                break;
+    return members_counter;
+
 def sum_workloads(cards_info):
     compiled_pattern = re.compile(workload_pattern, re.S | re.U)
-
-    counter = {'total':0, 'none':0}
+    counter = {'total': 0, 'none': 0}
+    card_members = []
 
     for card_info in cards_info:
         result = compiled_pattern.findall(card_info[1])
-        print (card_info[1], result)
+        memberId = card_info[2]
+        print(card_info[1], result)
         if len(result) > 0:
-            counter['total'] += float(result[0])
+            result = float(result[0])
+            counter['total'] += result
+            # card members
+            set_cardMembers(card_members, memberId, result)
         else:
             counter['none'] += 1
+    #print(card_members)
 
-    return counter
+    return {'counter': counter, 'card_members': card_members}
 
 def groupby_author():
     pass
@@ -165,9 +208,10 @@ def groupby_author():
 def groupby_task():
     pass
 
-def show(list_pattern, stat_result):
+def show(list_pattern, stat_result, members_counter):
     print(colors.fg.red, "LIST IS: [", list_pattern, "]")
-    print(colors.fg.lightcyan, stat_result, colors.reset)
+    print(colors.fg.cyan, stat_result, colors.reset)
+    print(colors.fg.cyan, members_counter, colors.reset)
 
 def compute_list(list_pattern):
     all_cards_info = []
@@ -176,11 +220,21 @@ def compute_list(list_pattern):
         for card_info in fetch_cards(list_id[1]):
             all_cards_info.append(card_info)
 
-    show(list_pattern, sum_workloads(all_cards_info))
+    data = sum_workloads(all_cards_info)
+    members_counter = get_members_counter(data['card_members'])
+    #print(members_counter)
+    show(list_pattern, data['counter'], members_counter)
 
 def main():
+    global board_members
+
     read_config("./config.json")
+    board_members = fetch_board_members()
+
     compute_list("^Done$")
+    #print("list's name:")
+    #listname = sys.argv[1]
+    #compute_list(listname)
 
 if __name__ == '__main__':
     main()
