@@ -16,6 +16,8 @@
 # 4. Be compatible with Python 2.x and Python 3.x
 # 5. Write test code for this project
 # 6. Provide flexible pattern to match titles such as: "Refactor the data access object(1h) (3h)"
+# 7. Draw burn down chart
+# 8. Snap todo list
 
 # Get your app-key from: https://trello.com/app-key
 # Get token from: https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&name=Server%20Token&key={APP-KEY}
