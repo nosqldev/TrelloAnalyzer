@@ -153,37 +153,37 @@ def fetch_board_members():
     url = basic_replace(url)
     url = url.replace("_BOARDID_", g_board_id)
     body = do_request(url)
-    member_info = []
+    member_info = {}
 
     for item in body:
-        member_info.append({'id': item['id'], 'fullName': item['fullName']})
+        member_info[item['id']] = item['fullName']
     print(member_info)
 
     return member_info
 
-def set_cardMembers(card_members, memberId, result):
+def fetch_card_members(card_members, memberId, man_hour):
     if len(card_members) > 0:
-
         isMemberExist = False
 
         for member in card_members:
             if member['id'] == str(memberId):
-                member['result'] += result
+                member['man_hour'] += man_hour
                 isMemberExist = True
                 break;
         if isMemberExist is False:
-            card_members.append({'id': memberId, 'result': result})
+            card_members.append({'id': memberId, 'man_hour': man_hour})
     else:
-        card_members.append({'id': memberId, 'result': result})
+        card_members.append({'id': memberId, 'man_hour': man_hour})
 
-def get_members_counter(card_members):
+    return card_members
+
+def groupby_author(card_members):
     members_counter = []
+    board_members = fetch_board_members()
 
     for card_member in card_members:
-        for board_member in board_members:
-            if card_member['id'] == board_member['id']:
-                members_counter.append({'fullName': board_member['fullName'], 'time': card_member['result']})
-                break;
+        members_counter.append({'fullName': board_members[card_member['id']], 'time': card_member['man_hour']})
+
     return members_counter;
 
 def sum_workloads(cards_info):
@@ -192,29 +192,26 @@ def sum_workloads(cards_info):
     card_members = []
 
     for card_info in cards_info:
-        result = compiled_pattern.findall(card_info[1])
+        man_hour = compiled_pattern.findall(card_info[1])
         memberId = card_info[2]
-        print(card_info[1], result)
-        if len(result) > 0:
-            result = float(result[0])
-            counter['total'] += result
-            # card members
-            set_cardMembers(card_members, memberId, result)
+        print(card_info[1], man_hour)
+        if len(man_hour) > 0:
+            man_hour = float(man_hour[0])
+            counter['total'] += man_hour
+            fetch_card_members(card_members, memberId, man_hour)
         else:
             counter['none'] += 1
     #print(card_members)
+    members_counter = groupby_author(card_members)
 
-    return {'counter': counter, 'card_members': card_members}
-
-def groupby_author():
-    pass
+    return {'counter': counter, 'members_counter': members_counter}
 
 def groupby_task():
     pass
 
-def show(list_pattern, stat_result, members_counter):
+def show(list_pattern, stat_man_hour, members_counter):
     print(colors.fg.red, "LIST IS: [", list_pattern, "]")
-    print(colors.fg.cyan, stat_result, colors.reset)
+    print(colors.fg.cyan, stat_man_hour, colors.reset)
     print(colors.fg.cyan, members_counter, colors.reset)
 
 def compute_list(list_pattern):
@@ -224,18 +221,13 @@ def compute_list(list_pattern):
         for card_info in fetch_cards(list_id[1]):
             all_cards_info.append(card_info)
 
-    data = sum_workloads(all_cards_info)
-    members_counter = get_members_counter(data['card_members'])
-    #print(members_counter)
-    show(list_pattern, data['counter'], members_counter)
+    workloads_statistic = sum_workloads(all_cards_info)
+    show(list_pattern, workloads_statistic['counter'], workloads_statistic['members_counter'])
 
 def main():
-    global board_members
-
     read_config("./config.json")
-    board_members = fetch_board_members()
-
     compute_list("^Done$")
+
     #print("list's name:")
     #listname = sys.argv[1]
     #compute_list(listname)
