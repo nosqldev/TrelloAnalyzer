@@ -34,6 +34,7 @@ g_board_id = None
 # }}}
 # {{{ pattern config
 workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*h\s*[)）]'
+task_pattern = u'[\[【［]\s*(新\s*增|紧\s*急)\s*[】］\]]\s*'
 # }}}
 # {{{ class colors
 class colors:
@@ -157,7 +158,6 @@ def fetch_board_members():
 
     for item in body:
         member_info[item['id']] = item['fullName']
-    print(member_info)
 
     return member_info
 
@@ -169,7 +169,7 @@ def fetch_card_members(card_members, memberId, man_hour):
             if member['id'] == str(memberId):
                 member['man_hour'] += man_hour
                 isMemberExist = True
-                break;
+                break
         if isMemberExist is False:
             card_members.append({'id': memberId, 'man_hour': man_hour})
     else:
@@ -177,37 +177,47 @@ def fetch_card_members(card_members, memberId, man_hour):
 
     return card_members
 
-def groupby_author(card_members):
+def groupby_author(board_members, card_members, memberId, man_hour):
     members_counter = []
-    board_members = fetch_board_members()
+    fetch_card_members(card_members, memberId, man_hour)
 
     for card_member in card_members:
         members_counter.append({'fullName': board_members[card_member['id']], 'time': card_member['man_hour']})
 
-    return members_counter;
+    return members_counter
 
 def sum_workloads(cards_info):
-    compiled_pattern = re.compile(workload_pattern, re.S | re.U)
-    counter = {'total': 0, 'none': 0}
+    compiled_workload_pattern = re.compile(workload_pattern, re.S | re.U)
+    counter = {'total': 0, 'none': 0, 'new': 0, 'urgent': 0}
     card_members = []
+    board_members = fetch_board_members()
 
     for card_info in cards_info:
-        man_hour = compiled_pattern.findall(card_info[1])
+        man_hour = compiled_workload_pattern.findall(card_info[1])
         memberId = card_info[2]
-        print(card_info[1], man_hour)
+
         if len(man_hour) > 0:
             man_hour = float(man_hour[0])
             counter['total'] += man_hour
-            fetch_card_members(card_members, memberId, man_hour)
+            members_counter = groupby_author(board_members, card_members, memberId, man_hour)
+            groupby_task(card_info[1], man_hour, counter)
+
         else:
             counter['none'] += 1
-    #print(card_members)
-    members_counter = groupby_author(card_members)
 
     return {'counter': counter, 'members_counter': members_counter}
 
-def groupby_task():
-    pass
+def groupby_task(title, man_hour, counter):
+    compiled_task_pattern = re.compile(task_pattern, re.S | re.U)
+    task = compiled_task_pattern.findall(title)
+
+    if len(task) > 0:
+        task[0].replace(' ', '')
+        if task[0] == '新增':
+            counter['new'] += man_hour
+        elif task[0] == '紧急':
+            counter['urgent'] += man_hour
+
 
 def show(list_pattern, stat_man_hour, members_counter):
     print(colors.fg.red, "LIST IS: [", list_pattern, "]")
