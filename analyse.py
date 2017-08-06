@@ -12,12 +12,12 @@
 # TODO
 # 1. Support parameters so we can run script as follows: ./analyse.py todo
 # 2. Fill the blank function: groupby_author(), groupby_task()
-# 3. Handle more task type, e.g: 新增/new/临时
-# 4. Be compatible with Python 2.x and Python 3.x
-# 5. Write test code for this project
-# 6. Provide flexible pattern to match titles such as: "Refactor the data access object(1h) (3h)"
+# 3. Provide flexible pattern to match titles such as: "Refactor the data access object(1h) (3h)"
+# 4. Handle more task type, e.g: 新增/new/临时
+# 5. Snap todo list
+# 6. Be compatible with Python 2.x and Python 3.x
 # 7. Draw burn down chart
-# 8. Snap todo list
+# 8. Write test code for this project
 
 # Get your app-key from: https://trello.com/app-key
 # Get token from: https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&name=Server%20Token&key={APP-KEY}
@@ -105,10 +105,12 @@ def read_config(filepath):
     g_token = config['token']
     g_board_id = config['board_id']
 
+
 def basic_replace(url):
     url = url.replace("_APP_KEY_", g_app_key)
     url = url.replace("_TOKEN_", g_token)
     return url
+
 
 def do_request(url):
     request = urllib.request.Request(url)
@@ -127,120 +129,146 @@ def do_request(url):
     else:
         return json.loads(content)
 
-def fetch_list_id(list_pattern):
+
+def fetch_card_name_by_pattern(card_name, pattern):
+    return re.compile(pattern, re.S | re.U).findall(card_name)
+
+
+def fetch_list_id_by_board(list_pattern):
     url = 'https://api.trello.com/1/boards/_BOARDID_/lists?key=_APP_KEY_&token=_TOKEN_'
     url = basic_replace(url)
     url = url.replace("_BOARDID_", g_board_id)
     body = do_request(url)
-    list_ids = []
+    list_info = []
 
     for item in body:
         if re.search(list_pattern, item['name'], re.I) is not None:
-            list_ids.append((item['name'], item['id']))
+            list_info.append({'id': item['id'], 'name': item['name']})
 
-    return list_ids
+    return list_info
 
-def fetch_cards(list_id):
-    url = 'https://api.trello.com/1/lists/_LIST_ID_/cards?key=_APP_KEY_&token=_TOKEN_'
-    url = basic_replace(url)
-    url = url.replace("_LIST_ID_", list_id)
-    body = do_request(url)
-    cards_info = [(item['id'], item['name'], item['idMembers'][0]) for item in body]
 
-    return cards_info
-
-def fetch_board_members():
+def fetch_members_by_board():
     url = 'https://api.trello.com/1/boards/_BOARDID_/members?key=_APP_KEY_&token=_TOKEN_'
     url = basic_replace(url)
     url = url.replace("_BOARDID_", g_board_id)
     body = do_request(url)
-    member_info = {}
+    all_members_info = {}
 
     for item in body:
-        member_info[item['id']] = item['fullName']
+        all_members_info[item['id']] = item['fullName']
 
-    return member_info
+    return all_members_info
 
-def fetch_card_members(card_members, memberId, man_hour):
-    if len(card_members) > 0:
-        isMemberExist = False
 
-        for member in card_members:
-            if member['id'] == str(memberId):
-                member['man_hour'] += man_hour
-                isMemberExist = True
-                break
-        if isMemberExist is False:
-            card_members.append({'id': memberId, 'man_hour': man_hour})
-    else:
-        card_members.append({'id': memberId, 'man_hour': man_hour})
+def fetch_cards_info(list_id):
+    url = 'https://api.trello.com/1/lists/_LISTID_/cards?key=_APP_KEY_&token=_TOKEN_'
+    url = basic_replace(url)
+    url = url.replace("_LISTID_", list_id)
+    body = do_request(url)
+    available_cards_info = []
+    board_members = fetch_members_by_board() #todo
 
-    return card_members
+    for item in body:
+        member_id = None
 
-def groupby_author(board_members, card_members, memberId, man_hour):
-    members_counter = []
-    fetch_card_members(card_members, memberId, man_hour)
-
-    for card_member in card_members:
-        members_counter.append({'fullName': board_members[card_member['id']], 'time': card_member['man_hour']})
-
-    return members_counter
-
-def sum_workloads(cards_info):
-    compiled_workload_pattern = re.compile(workload_pattern, re.S | re.U)
-    counter = {'total': 0, 'none': 0, 'new': 0, 'urgent': 0}
-    card_members = []
-    board_members = fetch_board_members()
-
-    for card_info in cards_info:
-        man_hour = compiled_workload_pattern.findall(card_info[1])
-        memberId = card_info[2]
-
-        if len(man_hour) > 0:
-            man_hour = float(man_hour[0])
-            counter['total'] += man_hour
-            members_counter = groupby_author(board_members, card_members, memberId, man_hour)
-            groupby_task(card_info[1], man_hour, counter)
-
+        if len(item['idMembers']) > 0 and item['idMembers'][0] is not None:
+            full_name = board_members[item['idMembers'][0]]
+            member_id = item['idMembers'][0]
         else:
-            counter['none'] += 1
+            full_name = 'null'
+            member_id = ''
 
-    return {'counter': counter, 'members_counter': members_counter}
+        card_hours = fetch_card_name_by_pattern(item['name'], workload_pattern)
+        plan_hours = float(card_hours[0]) if len(card_hours) > 0 else 0
+        work_hours = float(card_hours[1]) if len(card_hours) > 1 else plan_hours
 
-def groupby_task(title, man_hour, counter):
-    compiled_task_pattern = re.compile(task_pattern, re.S | re.U)
-    task = compiled_task_pattern.findall(title)
+        available_cards_info.append({
+            'id': item['id'],
+            'member_id': member_id,
+            'card_name': item['name'],
+            'full_name': full_name,
+            'card_hours': card_hours,
+            'plan_hours': plan_hours,
+            'work_hours': work_hours
+        })
+
+    return available_cards_info
+
+
+def groupby_task(card_statistics, card_name, hours):
+    task = fetch_card_name_by_pattern(card_name, task_pattern)
 
     if len(task) > 0:
         task[0].replace(' ', '')
         if task[0] == '新增':
-            counter['new'] += man_hour
+            card_statistics['new'] += hours
         elif task[0] == '紧急':
-            counter['urgent'] += man_hour
+            card_statistics['urgent'] += hours
 
 
-def show(list_pattern, stat_man_hour, members_counter):
-    print(colors.fg.red, "LIST IS: [", list_pattern, "]")
-    print(colors.fg.cyan, stat_man_hour, colors.reset)
-    print(colors.fg.cyan, members_counter, colors.reset)
+def groupby_author(members_info, card_info):
+    member_id = card_info['member_id']
+
+    if member_id in members_info:
+        members_info[member_id]['plan_hours'] += card_info['plan_hours']
+        members_info[member_id]['work_hours'] += card_info['work_hours']
+    else:
+        members_info[member_id] = {
+            'full_name': card_info['full_name'],
+            'plan_hours': card_info['plan_hours'],
+            'work_hours': card_info['work_hours']
+        }
+
+
+def sum_workloads(all_cards_info):
+    card_statistics = {'total': 0, 'none': 0, 'new': 0, 'urgent': 0}
+    member_statistics = []
+    members_info = {}
+
+    for card_info in all_cards_info:
+        card_hours = card_info['card_hours']
+        if len(card_hours) > 0:
+            hours = float(card_hours[0])
+            card_statistics['total'] += hours
+            groupby_task(card_statistics, card_info['card_name'], hours)
+        else:
+            card_statistics['none'] += 1
+
+        groupby_author(members_info, card_info)
+
+    members_info_keys = members_info.keys()
+
+    for member_id in members_info_keys:
+        member_statistics.append(members_info[member_id])
+
+    return {'card_statistics': card_statistics, 'member_statistics': member_statistics}
+
+
+def show(list_type, card_statistics, member_statistics):
+    print(colors.fg.red, "LIST IS: [", list_type, "]")
+    print(colors.fg.cyan, card_statistics, colors.reset)
+    print(colors.fg.cyan, member_statistics, colors.reset)
+
 
 def compute_list(list_pattern):
     all_cards_info = []
 
-    for list_id in fetch_list_id(list_pattern):
-        for card_info in fetch_cards(list_id[1]):
-            all_cards_info.append(card_info)
+    for list in fetch_list_id_by_board(list_pattern):
+        all_cards_info = fetch_cards_info(list['id'])
 
-    workloads_statistic = sum_workloads(all_cards_info)
-    show(list_pattern, workloads_statistic['counter'], workloads_statistic['members_counter'])
+    workloads = sum_workloads(all_cards_info)
+    show(list_pattern, workloads['card_statistics'], workloads['member_statistics'])
+
 
 def main():
     read_config("./config.json")
-    compute_list("^Done$")
+    listname = "DONE"
 
-    #print("list's name:")
-    #listname = sys.argv[1]
-    #compute_list(listname)
+    if len(sys.argv) == 2:
+        listname = sys.argv[1]
+
+    compute_list(listname)
 
 if __name__ == '__main__':
     main()
