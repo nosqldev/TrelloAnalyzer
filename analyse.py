@@ -18,6 +18,7 @@
 # 6. Be compatible with Python 2.x and Python 3.x
 # 7. Draw burn down chart
 # 8. Write test code for this project
+# 9. Switch between multiple boards
 
 # Get your app-key from: https://trello.com/app-key
 # Get token from: https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&name=Server%20Token&key={APP-KEY}
@@ -130,8 +131,8 @@ def do_request(url):
         return json.loads(content)
 
 
-def fetch_card_name_by_pattern(card_name, pattern):
-    return re.compile(pattern, re.S | re.U).findall(card_name)
+def get_card_name_by_pattern(card_name, pattern):
+    return re.findall(pattern, card_name, re.S | re.U)
 
 
 def fetch_list_id_by_board(list_pattern):
@@ -179,7 +180,7 @@ def fetch_cards_info(list_id):
             full_name = 'null'
             member_id = ''
 
-        card_hours = fetch_card_name_by_pattern(item['name'], workload_pattern)
+        card_hours = get_card_name_by_pattern(item['name'], workload_pattern)
         plan_hours = float(card_hours[0]) if len(card_hours) > 0 else 0
         work_hours = float(card_hours[1]) if len(card_hours) > 1 else plan_hours
 
@@ -197,7 +198,7 @@ def fetch_cards_info(list_id):
 
 
 def groupby_task(card_statistics, card_name, hours):
-    task = fetch_card_name_by_pattern(card_name, task_pattern)
+    task = get_card_name_by_pattern(card_name, task_pattern)
 
     if len(task) > 0:
         task[0].replace(' ', '')
@@ -237,9 +238,7 @@ def sum_workloads(all_cards_info):
 
         groupby_author(members_info, card_info)
 
-    members_info_keys = members_info.keys()
-
-    for member_id in members_info_keys:
+    for member_id in members_info.keys():
         member_statistics.append(members_info[member_id])
 
     return {'card_statistics': card_statistics, 'member_statistics': member_statistics}
@@ -254,8 +253,8 @@ def show(list_type, card_statistics, member_statistics):
 def compute_list(list_pattern):
     all_cards_info = []
 
-    for list in fetch_list_id_by_board(list_pattern):
-        all_cards_info = fetch_cards_info(list['id'])
+    for card_list in fetch_list_id_by_board(list_pattern):
+        all_cards_info = fetch_cards_info(card_list['id'])
 
     workloads = sum_workloads(all_cards_info)
     show(list_pattern, workloads['card_statistics'], workloads['member_statistics'])
