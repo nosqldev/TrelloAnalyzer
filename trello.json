@@ -1,5 +1,6 @@
 {
     "app_key": "",
     "token": "",
-    "board_id" : ""
+    "board_id" : "",
+    "user_id": ""
 }
