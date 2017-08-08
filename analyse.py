@@ -87,6 +87,7 @@ class colors:
 
 # }}}
 
+
 def read_config(filepath):
     global g_app_key
     global g_token
@@ -311,10 +312,9 @@ def set_board_info():
 
     if len(sys.argv) == 2:
         board_info = fetch_board_by_user()
-        print(board_info, "\nplease input a board_id：")
-        g_board_id = input()
-        print("\nplease input a list name：")
-        list_name = input()
+        print(board_info)
+        g_board_id = input("please input a board_id：")
+        list_name = input("please input a list name：")
 
     compute_list(list_name)
 
