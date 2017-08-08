@@ -32,6 +32,7 @@ import sys
 g_app_key = None
 g_token = None
 g_board_id = None
+g_user_id = None
 # }}}
 # {{{ pattern config
 workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*h\s*[)）]'
@@ -89,7 +90,7 @@ class colors:
 def read_config(filepath):
     global g_app_key
     global g_token
-    global g_board_id
+    global g_user_id
 
     f = None
     try:
@@ -106,7 +107,7 @@ def read_config(filepath):
 
     g_app_key = config['app_key']
     g_token = config['token']
-    g_board_id = config['board_id']
+    g_user_id = config['user_id']
 
 
 def basic_replace(url):
@@ -135,6 +136,19 @@ def do_request(url):
 
 def get_card_name_by_pattern(card_name, pattern):
     return re.findall(pattern, card_name, re.S | re.U)
+
+
+def fetch_board_by_user():
+    url = 'https://api.trello.com/1/members/_USERID_/boards?key=_APP_KEY_&token=_TOKEN_'
+    url = basic_replace(url)
+    url = url.replace("_USERID_", g_user_id)
+    body = do_request(url)
+    board_info = {}
+
+    for item in body:
+        board_info[item['shortLink']] = item['name']
+
+    return board_info
 
 
 def fetch_list_id_by_board(list_pattern):
@@ -290,14 +304,24 @@ def compute_list(list_pattern):
     show(list_pattern, workloads['card_stat'], workloads['member_stat'])
 
 
-def main():
-    read_config("./config.json")
+def set_board_info():
+    global g_board_id
+    g_board_id = "4SUiusaG"
     list_name = "DONE$"
 
     if len(sys.argv) == 2:
-        list_name = sys.argv[1]
+        board_info = fetch_board_by_user()
+        print(board_info, "\nplease input a board_id：")
+        g_board_id = input()
+        print("\nplease input a list name：")
+        list_name = input()
 
     compute_list(list_name)
+
+
+def main():
+    read_config("./config.json")
+    set_board_info()
 
 if __name__ == '__main__':
     main()
