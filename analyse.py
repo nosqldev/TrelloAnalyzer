@@ -335,7 +335,7 @@ def set_board_info():
 
     compute_list(list_name)
 
-
+    
 def main():
     read_config("./config.json")
     set_board_info()
