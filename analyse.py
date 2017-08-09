@@ -36,7 +36,7 @@ g_user_id = None
 # }}}
 # {{{ pattern config
 workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*h\s*[)）]'
-task_pattern = u'[\[【［]\s*(重\s*构|紧\s*急)\s*[】］\]]\s*'
+requirement_pattern = u'[\[【［]\s*(.*)\s*[】］\]]\s*'
 # }}}
 # {{{ class colors
 class colors:
@@ -206,8 +206,9 @@ def fetch_cards_info(list_id):
             label_name = 'null'
 
         card_hours = get_card_name_by_pattern(item['name'], workload_pattern)
+
         plan_hours = float(card_hours[0]) if len(card_hours) > 0 else 0
-        work_hours = float(card_hours[1]) if len(card_hours) > 1 else plan_hours
+        actual_hours = float(card_hours[1]) if len(card_hours) > 1 else plan_hours
 
         available_cards_info.append({
             'id': item['id'],
@@ -216,35 +217,34 @@ def fetch_cards_info(list_id):
             'full_name': full_name,
             'card_hours': card_hours,
             'plan_hours': plan_hours,
-            'work_hours': work_hours,
+            'actual_hours': actual_hours,
             'label_id': label_id,
-            'label_name': label_name
+            'label_name': label_name,
         })
 
     return available_cards_info
 
 
-def groupby_label(card_stat, card_info):
+def groupby_label(label_stat, card_info):
     label_name = card_info['label_name']
-    work_hours = card_info['work_hours']
+    actual_hours = card_info['actual_hours']
 
-    if label_name is not None:
+    if label_name is not None and label_name != 'null':
         label_name.replace(' ', '')
-        if label_name == '新增':
-            card_stat['new'] += work_hours
-        elif label_name == '紧急':
-            card_stat['urgent'] += work_hours
+        if label_name in label_stat:
+            label_stat[label_name] += actual_hours
+        else:
+            label_stat[label_name] = actual_hours
 
 
-def groupby_needs(card_stat, card_name, hours):
-    task = get_card_name_by_pattern(card_name, task_pattern)
+def groupby_requirement(requirement_stat, card_name, hours):
+    requirement_name = get_card_name_by_pattern(card_name, requirement_pattern)
 
-    if len(task) > 0:
-        task[0].replace(' ', '')
-        if task[0] == '重构':
-            card_stat['new'] += hours
-        elif task[0] == '紧急':
-            card_stat['urgent'] += hours
+    if len(requirement_name) > 0:
+        if requirement_name[0] in requirement_stat:
+            requirement_stat[requirement_name[0]] += hours
+        else:
+            requirement_stat[requirement_name[0]] = hours
 
 
 def groupby_author(members_info, card_info):
@@ -252,21 +252,32 @@ def groupby_author(members_info, card_info):
     label_name = card_info['label_name']
 
     if member_id in members_info:
-        members_info[member_id]['plan_hours'] += card_info['plan_hours']
-        members_info[member_id]['work_hours'] += card_info['work_hours']
-        if label_name == '新增':
-            members_info[member_id]['new_work_hours'] += card_info['work_hours']
+        if label_name == '新增' or label_name == '紧急':
+            members_info[member_id]['new_work_hours'] += card_info['actual_hours']
+        else:
+            members_info[member_id]['plan_hours'] += card_info['plan_hours']
+            members_info[member_id]['actual_hours'] += card_info['actual_hours']
     else:
-        members_info[member_id] = {
-            'full_name': card_info['full_name'],
-            'plan_hours': card_info['plan_hours'],
-            'work_hours': card_info['work_hours'],
-            'new_work_hours': card_info['work_hours'] if label_name == '新增' else 0
-        }
+        if label_name == '新增' or label_name == '紧急':
+            members_info[member_id] = {
+                'full_name': card_info['full_name'],
+                'plan_hours': 0,
+                'actual_hours': 0,
+                'new_work_hours': card_info['actual_hours']
+            }
+        else:
+            members_info[member_id] = {
+                'full_name': card_info['full_name'],
+                'plan_hours': card_info['plan_hours'],
+                'actual_hours': card_info['actual_hours'],
+                'new_work_hours': 0
+            }
 
 
 def sum_workloads(all_cards_info):
-    card_stat = {'total': 0, 'none': 0, 'new': 0, 'urgent': 0}
+    card_stat = {'totle': 0, 'none': 0}
+    label_stat = {}
+    requirement_stat = {}
     member_stat = []
     members_info = {}
 
@@ -274,9 +285,9 @@ def sum_workloads(all_cards_info):
         card_hours = card_info['card_hours']
         if len(card_hours) > 0:
             hours = float(card_hours[0])
-            card_stat['total'] += hours
-            #groupby_task(card_stat, card_info['card_name'], hours)
-            groupby_label(card_stat, card_info)
+            card_stat['totle'] += hours
+            groupby_label(label_stat, card_info)
+            groupby_requirement(requirement_stat, card_info['card_name'], hours)
         else:
             card_stat['none'] += 1
 
@@ -284,25 +295,31 @@ def sum_workloads(all_cards_info):
 
     for member_id in members_info.keys():
         member_stat.append(members_info[member_id])
-    member_stat.sort(key=lambda member: member['work_hours'], reverse=True)
+    member_stat.sort(key=lambda member: member['actual_hours'], reverse=True)
 
-    return {'card_stat': card_stat, 'member_stat': member_stat}
+    if len(requirement_stat) == 0:
+        requirement_stat = {'requirement': 0}
+
+    return {'card_stat': card_stat, 'label_stat': label_stat, 'member_stat': member_stat, 'requirement_stat': requirement_stat}
 
 
-def show(list_type, card_stat, member_stat):
-    print(colors.fg.red, "LIST IS: [", list_type, "]")
+def show(list_name, card_stat, label_stat, member_stat, requirement_stat):
+    print(colors.fg.red, "LIST IS: [", list_name, "]")
     print(colors.fg.cyan, card_stat, colors.reset)
+    print(colors.fg.cyan, label_stat, colors.reset)
     print(colors.fg.cyan, member_stat, colors.reset)
+    print(colors.fg.cyan, requirement_stat, colors.reset)
 
 
-def compute_list(list_pattern):
+def compute_list(list_name):
     all_cards_info = []
 
-    for card_list in fetch_list_id_by_board(list_pattern):
+    for card_list in fetch_list_id_by_board(list_name):
         all_cards_info = fetch_cards_info(card_list['id'])
+        list_name = card_list['name']
 
     workloads = sum_workloads(all_cards_info)
-    show(list_pattern, workloads['card_stat'], workloads['member_stat'])
+    show(list_name, workloads['card_stat'], workloads['label_stat'], workloads['member_stat'], workloads['requirement_stat'])
 
 
 def set_board_info():
@@ -310,11 +327,11 @@ def set_board_info():
     g_board_id = "4SUiusaG"
     list_name = "DONE$"
 
-    if len(sys.argv) == 2:
+    if len(sys.argv) == 2 and sys.argv[1] == 'board':
         board_info = fetch_board_by_user()
         print(board_info)
         g_board_id = input("please input a board_id：")
-        list_name = input("please input a list name：")
+        list_name = input("please input a list name：").upper()
 
     compute_list(list_name)
 
