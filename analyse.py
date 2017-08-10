@@ -206,6 +206,7 @@ def fetch_cards_info(list_id):
             label_name = 'null'
 
         card_hours = get_card_name_by_pattern(item['name'], workload_pattern)
+
         plan_hours = float(card_hours[0]) if len(card_hours) > 0 else 0
         actual_hours = float(card_hours[1]) if len(card_hours) > 1 else plan_hours
 
@@ -334,7 +335,7 @@ def set_board_info():
 
     compute_list(list_name)
 
-
+    
 def main():
     read_config("./config.json")
     set_board_info()
