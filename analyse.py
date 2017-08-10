@@ -92,6 +92,7 @@ def read_config(filepath):
     global g_app_key
     global g_token
     global g_user_id
+    global g_board_id
 
     f = None
     try:
@@ -109,6 +110,7 @@ def read_config(filepath):
     g_app_key = config['app_key']
     g_token = config['token']
     g_user_id = config['user_id']
+    g_board_id = config['board_id']
 
 
 def basic_replace(url):
@@ -322,8 +324,6 @@ def compute_list(list_name):
 
 
 def set_board_info():
-    global g_board_id
-    g_board_id = "4SUiusaG"
     list_name = "DONE$"
 
     if len(sys.argv) == 2 and sys.argv[1] == 'board':
