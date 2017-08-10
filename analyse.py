@@ -274,7 +274,7 @@ def groupby_author(members_info, card_info):
 
 
 def sum_workloads(all_cards_info):
-    card_stat = {'totle': 0, 'none': 0}
+    card_stat = {'total': 0, 'none': 0}
     label_stat = {}
     requirement_stat = {}
     member_stat = []
@@ -284,7 +284,7 @@ def sum_workloads(all_cards_info):
         card_hours = card_info['card_hours']
         if len(card_hours) > 0:
             hours = float(card_hours[0])
-            card_stat['totle'] += hours
+            card_stat['total'] += hours
             groupby_label(label_stat, card_info)
             groupby_requirement(requirement_stat, card_info['card_name'], hours)
         else:
