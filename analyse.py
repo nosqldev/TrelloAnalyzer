@@ -27,6 +27,9 @@ import json
 import urllib.request
 import re
 import sys
+import codecs
+import sendemail
+import chartstat
 
 # {{{ global config
 g_app_key = None
@@ -288,7 +291,7 @@ def set_members_stat(members_info, member_stat):
 
 def sum_workloads(all_cards_info):
     workloads = {
-        'card_stat': {'total': 0, 'none': 0},
+        'card_stat': {'总预估工时': 0, '无预估工时卡片数': 0},
         'label_stat': {},
         'member_stat': [],
         'requirement_stat': {}
@@ -299,11 +302,11 @@ def sum_workloads(all_cards_info):
         plan_hours = card_info['plan_hours']
         if plan_hours > 0:
             hours = float(plan_hours)
-            workloads['card_stat']['total'] += hours
+            workloads['card_stat']['总预估工时'] += hours
             groupby_label(workloads['label_stat'], card_info)
             groupby_requirement(workloads['requirement_stat'], card_info['card_name'], hours)
         else:
-            workloads['card_stat']['none'] += 1
+            workloads['card_stat']['无预估工时卡片数'] += 1
 
         groupby_author(members_info, card_info)
 
@@ -315,15 +318,22 @@ def sum_workloads(all_cards_info):
     return workloads
 
 
-def show(list_name, workloads):
-    print(colors.fg.red, "LIST IS: [", list_name, "]")
-    print(colors.fg.cyan, workloads['card_stat'], colors.reset)
-    print(colors.fg.cyan, workloads['label_stat'], colors.reset)
-    print(colors.fg.cyan, workloads['member_stat'], colors.reset)
-    print(colors.fg.cyan, workloads['requirement_stat'], colors.reset)
+def show(board_name, list_name, workloads):
+    origin = sys.stdout
+    file = codecs.open('task_stat.txt', 'w', encoding='utf-8')
+    sys.stdout = file
+
+    print("[", board_name + "：" + list_name, "]")
+    print(workloads['card_stat'])
+    print(workloads['label_stat'])
+    print(workloads['member_stat'])
+    print(workloads['requirement_stat'])
+
+    sys.stdout = origin
+    file.close()
 
 
-def compute_list(list_name):
+def compute_list(board_name, list_name):
     all_cards_info = []
     board_members = fetch_members_by_board()
 
@@ -332,26 +342,29 @@ def compute_list(list_name):
         list_name = card_list['name']
 
     workloads = sum_workloads(all_cards_info)
-    show(list_name, workloads)
+    show(board_name, list_name, workloads)
+    sendemail.send_email()
+    chartstat.column_graphs(workloads)
 
 
 def set_board_info():
     global g_board_id
     list_name = "DONE$"
+    board_info = fetch_board_by_user()
 
     if len(sys.argv) == 2 and sys.argv[1] == 'board':
-        board_info = fetch_board_by_user()
         print(board_info)
         g_board_id = input("please input a board_id：")
+
         list_name = input("please input a list name：").upper()
 
-    compute_list(list_name)
+    board_name = board_info[g_board_id]
+    compute_list(board_name, list_name)
 
 
 def main():
     read_config("./config.json")
     set_board_info()
-
 
 if __name__ == '__main__':
     main()
