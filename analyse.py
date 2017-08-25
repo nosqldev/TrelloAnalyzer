@@ -27,8 +27,9 @@ import json
 import urllib.request
 import re
 import sys
-import sendemail
 import codecs
+import sendemail
+import chartstat
 
 # {{{ global config
 g_app_key = None
@@ -319,7 +320,7 @@ def sum_workloads(all_cards_info):
 
 def show(board_name, list_name, workloads):
     origin = sys.stdout
-    file = codecs.open('ad_task.txt', 'w', encoding='utf-8')
+    file = codecs.open('task_stat.txt', 'w', encoding='utf-8')
     sys.stdout = file
 
     print("[", board_name + "：" + list_name, "]")
@@ -342,8 +343,8 @@ def compute_list(board_name, list_name):
 
     workloads = sum_workloads(all_cards_info)
     show(board_name, list_name, workloads)
-
     sendemail.send_email()
+    chartstat.column_graphs(workloads)
 
 
 def set_board_info():
@@ -352,14 +353,12 @@ def set_board_info():
     board_info = fetch_board_by_user()
 
     if len(sys.argv) == 2 and sys.argv[1] == 'board':
-        # board_info = fetch_board_by_user()
         print(board_info)
         g_board_id = input("please input a board_id：")
 
         list_name = input("please input a list name：").upper()
 
     board_name = board_info[g_board_id]
-
     compute_list(board_name, list_name)
 
 

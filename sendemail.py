@@ -16,7 +16,7 @@ password = 'kelfy-666'
 
 def get_email_content():
     try:
-        file = codecs.open('ad_task.txt', 'r', encoding='utf-8')
+        file = codecs.open('task_stat.txt', 'r', encoding='utf-8')
         data = file.readlines()
         file.close()
     except Exception:
@@ -57,7 +57,7 @@ def send_email():
         smtp.connect('smtp.meizu.com')
         # smtp.set_debuglevel(1)
         smtp.login(username, password)
-        smtp.sendmail(sender, receiver, msg.as_string())
+        # smtp.sendmail(sender, receiver, msg.as_string())
         smtp.quit()
         print('send email success')
     except smtplib.SMTPException:
