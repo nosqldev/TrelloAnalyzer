@@ -19,11 +19,11 @@ def column_graphs(workloads):
     new_work_hours = []
     n_groups = len(workloads['member_stat'])
 
-    for member_stat in workloads['member_stat']:
-        member_name.append(member_stat['member_name'])
-        plan_hours.append(member_stat['plan_hours'])
-        actual_hours.append(member_stat['actual_hours'])
-        new_work_hours.append(member_stat['new_work_hours'])
+    for name in workloads['member_stat']:
+        member_name.append(name)
+        plan_hours.append(workloads['member_stat'][name]['plan_hours'])
+        actual_hours.append(workloads['member_stat'][name]['actual_hours'])
+        new_work_hours.append(workloads['member_stat'][name]['new_work_hours'])
 
     member_name = tuple(member_name)
     means_plan_hours = tuple(plan_hours)
@@ -43,8 +43,9 @@ def column_graphs(workloads):
     plt.ylabel('hours')
     plt.title('work hours by members')
     plt.xticks(index + bar_width, member_name)
-    plt.ylim(0, 40)
-    plt.legend()
+    hours_max_index = actual_hours.index(max(actual_hours))
+    plt.ylim(0, actual_hours[hours_max_index] + 20)
+    plt.legend(loc='best', fontsize=10)
 
     add_labels(rects_plan_hours)
     add_labels(rects_actual_hours)
