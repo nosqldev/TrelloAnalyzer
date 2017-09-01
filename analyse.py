@@ -180,6 +180,7 @@ def fetch_list_id_by_board(list_pattern):
     list_info = []
 
     for item in body:
+
         if re.search(list_pattern, item['name'], re.I) is not None:
             list_info.append({'id': item['id'], 'name': item['name']})
 
@@ -351,18 +352,63 @@ def show(board_name, list_name, workloads):
     file.close()
 
 
-def save_cardinfo_to_json(all_cards_info):
+def cardinfo_turn_to_dict(all_cards_info):
     cards_info = {}
 
     for card_info in all_cards_info:
         card_id = card_info['id']
         cards_info[card_id] = card_info
-        del(cards_info[card_id]['id'])
+        del (cards_info[card_id]['id'])
 
-    cards_info_json = json.dumps(cards_info)
-    file = open('data/snapshot-' + datetime.now().date().isoformat() + '.txt', 'w', encoding='utf-8')
-    file.write(cards_info_json)
-    file.close()
+    return cards_info
+
+
+def save_cardinfo_to_json(all_cards_info):
+    cards_info = cardinfo_turn_to_dict(all_cards_info)
+
+    with open('data/snapshot-' + datetime.now().date().isoformat() + '.txt', 'w', encoding='utf-8') as f:
+        json.dump(cards_info)
+
+
+def build_new_card_stat(all_cards_info):
+    cards_info = cardinfo_turn_to_dict(all_cards_info)
+    cards_info_keys = cards_info.keys()
+    new_cards_info = {}
+    new_card_for_member = {}
+
+    with open('data/snapshot-2017-08-31.txt', 'r') as f:
+        snapshot_cards_info = json.load(f)
+
+    for card_id in cards_info_keys:
+        if card_id not in snapshot_cards_info.keys():
+            new_cards_info[card_id] = cards_info[card_id]
+        else:
+            member_id = cards_info[card_id]['member_id']
+
+            if member_id in new_card_for_member:
+                new_card_for_member[member_id]['plan_hours'] += cards_info[card_id]['plan_hours']
+                new_card_for_member[member_id]['actual_hours'] += cards_info[card_id]['actual_hours']
+            else:
+                new_card_for_member[member_id] = {
+                    'member_name': cards_info[card_id]['member_name'],
+                    'plan_hours': cards_info[card_id]['plan_hours'],
+                    'actual_hours': cards_info[card_id]['actual_hours'],
+                    'new_work_hours': 0
+                }
+
+    for new_card_id in new_cards_info:
+        member_id = new_cards_info[new_card_id]['member_id']
+
+        if member_id in new_card_for_member:
+            new_card_for_member[member_id]['new_work_hours'] += new_cards_info[new_card_id]['actual_hours']
+        else:
+            new_card_for_member[member_id] = {
+                'member_name': new_cards_info[new_card_id]['member_name'],
+                'new_work_hours': new_cards_info[new_card_id]['actual_hours']
+            }
+    print(new_card_for_member)
+
+    return new_card_for_member
 
 
 def compute_list(board_name, list_name, action):
@@ -381,6 +427,8 @@ def compute_list(board_name, list_name, action):
 
         if action == "snapshot":
             save_cardinfo_to_json(all_cards_info)
+        elif action == 'new_card_stat':
+            build_new_card_stat(all_cards_info)
         else:
             show(board_name, list_name, workloads)
             chartstat.column_graphs(workloads)
@@ -404,6 +452,9 @@ def set_board_info():
         elif sys.argv[1] == 'snapshot':
             list_name = "TODO"
             action = "snapshot"
+        elif sys.argv[1] == 'new_card_stat':
+            list_name = "^TODO|^DOING$|^DONE"
+            action = "new_card_stat"
 
     board_name = board_info[g_board_id]
     compute_list(board_name, list_name, action)
