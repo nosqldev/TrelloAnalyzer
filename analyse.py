@@ -308,7 +308,7 @@ def build_members_stat(members_info):
     return member_stat
 
 
-def sum_workloads(all_cards_info):
+def sum_workloads(all_cards_info, action):
     workloads = {
         'card_stat': {'总预估工时': 0, '无预估工时卡片数': 0},
         'label_stat': {},
@@ -317,17 +317,20 @@ def sum_workloads(all_cards_info):
     }
     members_info = {}
 
-    for card_info in all_cards_info:
-        plan_hours = card_info['plan_hours']
+    for card_id in all_cards_info.keys():
+        plan_hours = all_cards_info[card_id]['plan_hours']
         if plan_hours > 0:
             hours = float(plan_hours)
             workloads['card_stat']['总预估工时'] += hours
-            groupby_label(workloads['label_stat'], card_info)
-            groupby_requirement(workloads['requirement_stat'], card_info['card_name'], hours)
+            groupby_label(workloads['label_stat'], all_cards_info[card_id])
+            groupby_requirement(workloads['requirement_stat'], all_cards_info[card_id]['card_name'], hours)
         else:
             workloads['card_stat']['无预估工时卡片数'] += 1
 
-        groupby_author(members_info, card_info)
+        groupby_author(members_info, all_cards_info[card_id])
+
+    if action == "new_card_stat":
+        members_info = build_new_card_stat(all_cards_info)
 
     workloads['member_stat'] = build_members_stat(members_info)
 
@@ -363,21 +366,26 @@ def cardinfo_turn_to_dict(all_cards_info):
     return cards_info
 
 
-def save_cardinfo_to_json(all_cards_info):
-    cards_info = cardinfo_turn_to_dict(all_cards_info)
+def save_cardinfo_to_json(cards_info):
+    try:
+        with open('data/snapshot-' + datetime.now().date().isoformat() + '.txt', 'w', encoding='utf-8') as f:
+            json.dump(cards_info, f)
+    except IOError as e:
+        print('write cards_info error: ' + str(e))
+        sys.exit(-1)
 
-    with open('data/snapshot-' + datetime.now().date().isoformat() + '.txt', 'w', encoding='utf-8') as f:
-        json.dump(cards_info)
 
-
-def build_new_card_stat(all_cards_info):
-    cards_info = cardinfo_turn_to_dict(all_cards_info)
+def build_new_card_stat(cards_info):
     cards_info_keys = cards_info.keys()
     new_cards_info = {}
     new_card_for_member = {}
 
-    with open('data/snapshot-2017-08-31.txt', 'r') as f:
-        snapshot_cards_info = json.load(f)
+    try:
+        with open('data/snapshot-2017-09-01.txt', 'r') as f:
+            snapshot_cards_info = json.load(f)
+    except IOError as e:
+        print('read cards_info error: ' + str(e))
+        sys.exit(-1)
 
     for card_id in cards_info_keys:
         if card_id not in snapshot_cards_info.keys():
@@ -404,32 +412,32 @@ def build_new_card_stat(all_cards_info):
         else:
             new_card_for_member[member_id] = {
                 'member_name': new_cards_info[new_card_id]['member_name'],
+                'plan_hours': 0,
+                'actual_hours': 0,
                 'new_work_hours': new_cards_info[new_card_id]['actual_hours']
             }
-    print(new_card_for_member)
 
     return new_card_for_member
 
 
 def compute_list(board_name, list_name, action):
-    all_cards_info = []
+    cards_list = []
     lists_name = []
     board_members = fetch_members_by_board()
 
     for card_list in fetch_list_id_by_board(list_name):
-        all_cards_info.extend(get_cards_info(card_list['id'], board_members))
+        cards_list.extend(get_cards_info(card_list['id'], board_members))
         lists_name.append(card_list['name'])
 
     list_name = " & ".join(lists_name)
 
-    if len(all_cards_info):
-        workloads = sum_workloads(all_cards_info)
+    if len(cards_list):
+        cards_dict = cardinfo_turn_to_dict(cards_list)
 
         if action == "snapshot":
-            save_cardinfo_to_json(all_cards_info)
-        elif action == 'new_card_stat':
-            build_new_card_stat(all_cards_info)
+            save_cardinfo_to_json(cards_dict)
         else:
+            workloads = sum_workloads(cards_dict, action)
             show(board_name, list_name, workloads)
             chartstat.column_graphs(workloads)
             sendemail.send_email(board_name, g_sender, g_receiver, g_username, g_password)
@@ -450,7 +458,7 @@ def set_board_info():
         if sys.argv[1] == 'board':
             list_name = input("please input a list name：").upper()
         elif sys.argv[1] == 'snapshot':
-            list_name = "TODO"
+            list_name = "^TODO|^DOING$"
             action = "snapshot"
         elif sys.argv[1] == 'new_card_stat':
             list_name = "^TODO|^DOING$|^DONE"
