@@ -53,4 +53,4 @@ def column_graphs(workloads):
 
     plt.tight_layout()
     plt.savefig('img/work_hours_chart.png')
-    plt.show()
+    # plt.show()
