@@ -23,13 +23,15 @@
 # Get your app-key from: https://trello.com/app-key
 # Get token from: https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&name=Server%20Token&key={APP-KEY}
 
-import json
 import urllib.request
 import re
 import sys
 import codecs
 import sendemail
 import chartstat
+import json
+from datetime import datetime
+import glob
 
 # {{{ global config
 g_app_key = None
@@ -38,12 +40,11 @@ g_board_id = None
 g_user_id = None
 g_sender = None
 g_receiver = None
-g_subject = None
 g_username = None
 g_password = None
 # }}}
 # {{{ pattern config
-workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*h\s*[)）]'
+workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*[hH]\s*[)）]'
 requirement_pattern = u'[\[【［]\s*(.*)\s*[】］\]]\s*'
 # }}}
 # {{{ class colors
@@ -105,7 +106,6 @@ def read_config(filepath):
     global g_board_id
     global g_sender
     global g_receiver
-    global g_subject
     global g_username
     global g_password
 
@@ -128,7 +128,6 @@ def read_config(filepath):
     g_board_id = config['board_id']
     g_sender = config['sender']
     g_receiver = config['receiver']
-    g_subject = config['subject']
     g_username = config['username']
     g_password = config['password']
 
@@ -142,14 +141,21 @@ def basic_replace(url):
 def do_request(url):
     request = urllib.request.Request(url)
     content = None
+    flag = False
 
-    try:
-        response = urllib.request.urlopen(request)
-        content = response.read().decode()
-    except urllib.request.HTTPError as e:
-        print("http error: " + str(e))
-    except Exception as e:
-        print("error: " + str(e))
+    for i in range(3):  # retry when network access failed
+        try:
+            response = urllib.request.urlopen(request)
+            content = response.read().decode()
+            flag = True
+            break
+        except urllib.request.HTTPError as e:
+            print("http error: " + str(e))
+        except Exception as e:
+            print("error: " + str(e))
+
+    if not flag:
+        sys.exit(-1)
 
     if content is None:
         return []
@@ -182,6 +188,7 @@ def fetch_list_id_by_board(list_pattern):
     list_info = []
 
     for item in body:
+
         if re.search(list_pattern, item['name'], re.I) is not None:
             list_info.append({'id': item['id'], 'name': item['name']})
 
@@ -297,35 +304,43 @@ def groupby_author(members_info, card_info):
             }
 
 
-def set_members_stat(members_info, member_stat):
+def build_members_stat(members_info):
+    member_stat = {}
     members_info_keys = members_info.keys()
+
     for member_id in members_info_keys:
-        member_stat.append(members_info[member_id])
-    member_stat.sort(key=lambda member: member['actual_hours'], reverse=True)
+        member_name = members_info[member_id]['member_name']
+        member_stat[member_name] = members_info[member_id]
+        del(member_stat[member_name]['member_name'])
+
+    return member_stat
 
 
-def sum_workloads(all_cards_info):
+def sum_workloads(all_cards_info, action, board_name):
     workloads = {
         'card_stat': {'总预估工时': 0, '无预估工时卡片数': 0},
         'label_stat': {},
-        'member_stat': [],
+        'member_stat': {},
         'requirement_stat': {}
     }
     members_info = {}
 
-    for card_info in all_cards_info:
-        plan_hours = card_info['plan_hours']
+    for card_id in all_cards_info.keys():
+        plan_hours = all_cards_info[card_id]['plan_hours']
         if plan_hours > 0:
             hours = float(plan_hours)
             workloads['card_stat']['总预估工时'] += hours
-            groupby_label(workloads['label_stat'], card_info)
-            groupby_requirement(workloads['requirement_stat'], card_info['card_name'], hours)
+            groupby_label(workloads['label_stat'], all_cards_info[card_id])
+            groupby_requirement(workloads['requirement_stat'], all_cards_info[card_id]['card_name'], hours)
         else:
             workloads['card_stat']['无预估工时卡片数'] += 1
 
-        groupby_author(members_info, card_info)
+        groupby_author(members_info, all_cards_info[card_id])
 
-    set_members_stat(members_info, workloads['member_stat'])
+    if action == "new_card_stat":
+        members_info = build_new_card_stat(all_cards_info, board_name)
+
+    workloads['member_stat'] = build_members_stat(members_info)
 
     if len(workloads['requirement_stat']) == 0:
         workloads['equirement_stat'] = {'requirement': 0}
@@ -335,46 +350,136 @@ def sum_workloads(all_cards_info):
 
 def show(board_name, list_name, workloads):
     origin = sys.stdout
-    file = codecs.open('task_stat.txt', 'w', encoding='utf-8')
+    file = codecs.open('data/task_stat.txt', 'w', encoding='utf-8')
     sys.stdout = file
 
     print("[", board_name + "：" + list_name, "]")
-    print(workloads['card_stat'])
-    print(workloads['label_stat'])
-    print(workloads['member_stat'])
-    print(workloads['requirement_stat'])
+    print("总计：", workloads['card_stat'])
+    print("标签：", workloads['label_stat'])
+    print("成员：", workloads['member_stat'])
+    print("需求：", workloads['requirement_stat'])
 
     sys.stdout = origin
     file.close()
 
 
-def compute_list(board_name, list_name):
-    all_cards_info = []
+def cardinfo_turn_to_dict(all_cards_info):
+    cards_info = {}
+
+    for card_info in all_cards_info:
+        card_id = card_info['id']
+        cards_info[card_id] = card_info
+        del (cards_info[card_id]['id'])
+
+    return cards_info
+
+
+def save_cardinfo_to_json(cards_info, board_name):
+    try:
+        with open('data/iteration-snapshot-' + board_name + '-' + datetime.now().date().isoformat() + '.txt', 'w', encoding='utf-8') as f:
+            json.dump(cards_info, f)
+    except IOError as e:
+        print('write cards_info error: ' + str(e))
+        sys.exit(-1)
+
+
+def build_new_card_stat(cards_info, board_name):
+    cards_info_keys = cards_info.keys()
+    new_cards_info = {}
+    new_card_for_member = {}
+
+    file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "*.txt"))[-1]
+
+    try:
+        with open(file_name, 'r') as f:
+            snapshot_cards_info = json.load(f)
+    except IOError as e:
+        print('read cards_info error: ' + str(e))
+        sys.exit(-1)
+
+    for card_id in cards_info_keys:
+        if card_id not in snapshot_cards_info.keys():
+            new_cards_info[card_id] = cards_info[card_id]
+        else:
+            member_id = cards_info[card_id]['member_id']
+
+            if member_id in new_card_for_member:
+                new_card_for_member[member_id]['plan_hours'] += cards_info[card_id]['plan_hours']
+                new_card_for_member[member_id]['actual_hours'] += cards_info[card_id]['actual_hours']
+            else:
+                new_card_for_member[member_id] = {
+                    'member_name': cards_info[card_id]['member_name'],
+                    'plan_hours': cards_info[card_id]['plan_hours'],
+                    'actual_hours': cards_info[card_id]['actual_hours'],
+                    'new_work_hours': 0
+                }
+
+    for new_card_id in new_cards_info:
+        member_id = new_cards_info[new_card_id]['member_id']
+
+        if member_id in new_card_for_member:
+            new_card_for_member[member_id]['new_work_hours'] += new_cards_info[new_card_id]['actual_hours']
+        else:
+            new_card_for_member[member_id] = {
+                'member_name': new_cards_info[new_card_id]['member_name'],
+                'plan_hours': 0,
+                'actual_hours': 0,
+                'new_work_hours': new_cards_info[new_card_id]['actual_hours']
+            }
+
+    return new_card_for_member
+
+
+def compute_list(board_name, list_name, action):
+    cards_list = []
+    lists_name = []
     board_members = fetch_members_by_board()
 
-    for card_list in fetch_list_id_by_board(list_name):
-        all_cards_info = get_cards_info(card_list['id'], board_members)
-        list_name = card_list['name']
+    card_id_list = fetch_list_id_by_board(list_name)
 
-    workloads = sum_workloads(all_cards_info)
-    show(board_name, list_name, workloads)
-    chartstat.column_graphs(workloads)
-    sendemail.send_email(g_sender, g_receiver, g_subject, g_username, g_password)
+    for i, card_list in enumerate(card_id_list):
+        print("\rfetching card info %d/%d" % (i+1, len(card_id_list)), end='', flush=True)
+        cards_list.extend(get_cards_info(card_list['id'], board_members))
+        lists_name.append(card_list['name'])
+
+    print("")
+    list_name = " & ".join(lists_name)
+
+    if len(cards_list):
+        cards_dict = cardinfo_turn_to_dict(cards_list)
+
+        if action == "new_iteration":
+            save_cardinfo_to_json(cards_dict, board_name)
+        else:
+            workloads = sum_workloads(cards_dict, action, board_name)
+            show(board_name, list_name, workloads)
+            chartstat.column_graphs(workloads)
+            sendemail.send_email(board_name, g_sender, g_receiver, g_username, g_password)
+    else:
+        print('The list is empty！')
 
 
 def set_board_info():
     global g_board_id
-    list_name = "DONE$"
+    action = ""
+    list_name = "^TODO|^DOING$|^DONE$"
     board_info = fetch_board_by_user()
 
-    if len(sys.argv) == 2 and sys.argv[1] == 'board':
+    if len(sys.argv) == 2:
         print(board_info)
         g_board_id = input("please input a board_id：")
 
-        list_name = input("please input a list name：").upper()
+        if sys.argv[1] == 'board':
+            list_name = input("please input a list name：").upper()
+        elif sys.argv[1] == 'new_iteration':
+            list_name = "^TODO|^DOING$"
+            action = "new_iteration"
+        elif sys.argv[1] == 'new_card_stat':
+            list_name = "^TODO|^DOING$|^DONE$"
+            action = "new_card_stat"
 
     board_name = board_info[g_board_id]
-    compute_list(board_name, list_name)
+    compute_list(board_name, list_name, action)
 
 
 def main():

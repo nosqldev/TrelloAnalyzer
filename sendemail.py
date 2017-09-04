@@ -12,7 +12,7 @@ import codecs
 
 def get_email_content():
     try:
-        fp = codecs.open('task_stat.txt', 'r', encoding='utf-8')
+        fp = codecs.open('data/task_stat.txt', 'r', encoding='utf-8')
         data = fp.readlines()
         fp.close()
     except IOError:
@@ -28,7 +28,7 @@ def content_html():
     list_name = "".join(body[0])
     card_stat = "".join(body[1])
     label_stat = "".join(body[2])
-    member_stat = "".join(body[3][1:-2])
+    member_stat = "".join(body[3])
     requirement_stat = "".join(body[4])
 
     content = '<div><strong>' + list_name + '</strong></div><br/>' + \
@@ -48,8 +48,9 @@ def addimg(src, imgid):
     return msgImage
 
 
-def send_email(sender, receiver, subject, username, password):
+def send_email(board_name, sender, receiver, username, password):
     content = content_html()
+    subject = board_name + " 迭代任务统计"
 
     msg = MIMEMultipart('related')
     msgtext = MIMEText(content + '<br><img src=\"cid:weekly\" border=\"1\">', 'html', 'utf-8')
@@ -64,7 +65,7 @@ def send_email(sender, receiver, subject, username, password):
         smtp.connect('smtp.meizu.com')
         # smtp.set_debuglevel(1)
         smtp.login(username, password)
-        smtp.sendmail(sender, receiver, msg.as_string())
+        smtp.sendmail(sender, receiver.split(','), msg.as_string())
         smtp.quit()
         print('send email success')
     except smtplib.SMTPException:
