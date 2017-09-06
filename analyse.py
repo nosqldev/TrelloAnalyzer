@@ -374,10 +374,21 @@ def cardinfo_turn_to_dict(all_cards_info):
     return cards_info
 
 
-def save_cardinfo_to_json(cards_info, board_name):
+def save_cardinfo_to_json(cards_dict, board_name, action):
+    if action == "new_iteration":
+        cards_info = {card_id: cards_dict[card_id] for card_id in cards_dict if
+                           re.search("^DOING|^TODO", cards_dict[card_id]['list_name'])}
+        file_name = "data/iteration-snapshot-"
+    elif action == "daily_cards":
+        cards_info = {card_id: cards_dict[card_id] for card_id in cards_dict if
+                                re.search("^DOING|^TODO|^DONE$", cards_dict[card_id]['list_name'])}
+        file_name = "data/daily-"
+
+    print(cards_info)
     try:
-        with open('data/iteration-snapshot-' + board_name + '-' + datetime.now().date().isoformat() + '.txt', 'w', encoding='utf-8') as f:
+        with open(file_name + board_name + '-' + datetime.now().date().isoformat() + '.txt', 'w', encoding='utf-8') as f:
             json.dump(cards_info, f)
+        print('save cards success')
     except IOError as e:
         print('write cards_info error: ' + str(e))
         sys.exit(-1)
@@ -388,7 +399,7 @@ def build_new_card_stat(cards_info, board_name):
     new_cards_info = {}
     new_card_for_member = {}
 
-    file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "*.txt"))[-1]
+    file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))[-1]
 
     try:
         with open(file_name, 'r') as f:
@@ -439,7 +450,9 @@ def compute_list(board_name, list_name, action):
 
     for i, card_list in enumerate(card_id_list):
         print("\rfetching card info %d/%d" % (i+1, len(card_id_list)), end='', flush=True)
-        cards_list.extend(get_cards_info(card_list['id'], board_members))
+        cards_info = get_cards_info(card_list['id'], board_members)
+        [h.update({'list_name': card_list['name']}) for h in cards_info]
+        cards_list.extend(cards_info)
         lists_name.append(card_list['name'])
 
     print("")
@@ -448,8 +461,8 @@ def compute_list(board_name, list_name, action):
     if len(cards_list):
         cards_dict = cardinfo_turn_to_dict(cards_list)
 
-        if action == "new_iteration":
-            save_cardinfo_to_json(cards_dict, board_name)
+        if action == "new_iteration" or action == "daily_cards":
+            save_cardinfo_to_json(cards_dict, board_name, action)
         else:
             workloads = sum_workloads(cards_dict, action, board_name)
             show(board_name, list_name, workloads)
@@ -474,6 +487,9 @@ def set_board_info():
         elif sys.argv[1] == 'new_iteration':
             list_name = "^TODO|^DOING$"
             action = "new_iteration"
+        elif sys.argv[1] == 'daily_cards':
+            list_name = "^TODO|^DOING$"
+            action = "daily_cards"
         elif sys.argv[1] == 'new_card_stat':
             list_name = "^TODO|^DOING$|^DONE$"
             action = "new_card_stat"

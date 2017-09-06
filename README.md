@@ -11,3 +11,8 @@ TrelloAnalyzer lets you measure time-cost of your project as well as track your 
 - **plan_hours**：预计工时。当前 list 中同一作者的卡片预估工时（ title 中第一个括号中时间）总和。
 - **actual_hours**：实际工时。当前 list 中同一作者的卡片实际工时（ title 中第二个括号中时间，若没有，取第一个括号中的预计工时加和）总和
 - **new_work_hours**：新增任务实际工时。取 label 为“新增”及“紧急”的同一作者的卡片实际工时（ title 中第二个括号中时间，若没有，取第一个括号中的预计工时加和）总和
+
+
+### 运行说明：
+- **./analyse.py new_iteration**: Save a snapshot when you start an iteration
+- **./analyse.py new_card_stat**: Use the snapshot to count new cards when the iteration ends
