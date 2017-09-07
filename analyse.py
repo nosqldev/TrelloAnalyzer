@@ -384,7 +384,6 @@ def save_cardinfo_to_json(cards_dict, board_name, action):
                                 re.search("^DOING|^TODO|^DONE$", cards_dict[card_id]['list_name'])}
         file_name = "data/daily-"
 
-    print(cards_info)
     try:
         with open(file_name + board_name + '-' + datetime.now().date().isoformat() + '.txt', 'w', encoding='utf-8') as f:
             json.dump(cards_info, f)
@@ -394,12 +393,32 @@ def save_cardinfo_to_json(cards_dict, board_name, action):
         sys.exit(-1)
 
 
+def generate_member_stat_from_cards_info(cards_info):
+    member_stat = {}
+
+    all_labels = list(set([value['label_name'] for value in cards_info.values()]))
+
+    for card_id in cards_info:
+        member_stat[cards_info[card_id]['member_id']] = {
+                                                            'member_name': cards_info[card_id]['member_name'],
+                                                            'plan_hours': 0,
+                                                            'actual_hours': 0,
+                                                            'new_work_hours': 0,
+                                                            'new_work_label': {label: 0 for label in all_labels}
+                                                         }
+
+    return member_stat
+
+
 def build_new_card_stat(cards_info, board_name):
     cards_info_keys = cards_info.keys()
     new_cards_info = {}
-    new_card_for_member = {}
 
-    file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))[-1]
+    member_stat = generate_member_stat_from_cards_info(cards_info)
+
+    # file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))[-1]
+    file_name = sorted(glob.glob("data/daily-" + board_name + "-*.txt"))[-1]
+    print('compare the file with：' + file_name)
 
     try:
         with open(file_name, 'r') as f:
@@ -409,36 +428,19 @@ def build_new_card_stat(cards_info, board_name):
         sys.exit(-1)
 
     for card_id in cards_info_keys:
+        member_id = cards_info[card_id]['member_id']
+        card_info = cards_info[card_id]
+
         if card_id not in snapshot_cards_info.keys():
-            new_cards_info[card_id] = cards_info[card_id]
+            member_stat[member_id]['new_work_hours'] += card_info['actual_hours']
+
+            if u'新增' in str(card_info['label_name']):
+                member_stat[member_id]['new_work_label'][card_info['label_name']] += card_info['actual_hours']
         else:
-            member_id = cards_info[card_id]['member_id']
+            member_stat[member_id]['plan_hours'] += card_info['plan_hours']
+            member_stat[member_id]['actual_hours'] += card_info['actual_hours']
 
-            if member_id in new_card_for_member:
-                new_card_for_member[member_id]['plan_hours'] += cards_info[card_id]['plan_hours']
-                new_card_for_member[member_id]['actual_hours'] += cards_info[card_id]['actual_hours']
-            else:
-                new_card_for_member[member_id] = {
-                    'member_name': cards_info[card_id]['member_name'],
-                    'plan_hours': cards_info[card_id]['plan_hours'],
-                    'actual_hours': cards_info[card_id]['actual_hours'],
-                    'new_work_hours': 0
-                }
-
-    for new_card_id in new_cards_info:
-        member_id = new_cards_info[new_card_id]['member_id']
-
-        if member_id in new_card_for_member:
-            new_card_for_member[member_id]['new_work_hours'] += new_cards_info[new_card_id]['actual_hours']
-        else:
-            new_card_for_member[member_id] = {
-                'member_name': new_cards_info[new_card_id]['member_name'],
-                'plan_hours': 0,
-                'actual_hours': 0,
-                'new_work_hours': new_cards_info[new_card_id]['actual_hours']
-            }
-
-    return new_card_for_member
+    return member_stat
 
 
 def compute_list(board_name, list_name, action):
@@ -466,8 +468,8 @@ def compute_list(board_name, list_name, action):
         else:
             workloads = sum_workloads(cards_dict, action, board_name)
             show(board_name, list_name, workloads)
-            chartstat.column_graphs(workloads)
-            sendemail.send_email(board_name, g_sender, g_receiver, g_username, g_password)
+            chartstat.draw_bar_chart(workloads)
+            # sendemail.send_email(board_name, g_sender, g_receiver, g_username, g_password)
     else:
         print('The list is empty！')
 
