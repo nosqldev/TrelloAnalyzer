@@ -416,8 +416,8 @@ def build_new_card_stat(cards_info, board_name):
 
     member_stat = generate_member_stat_from_cards_info(cards_info)
 
-    # file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))[-1]
-    file_name = sorted(glob.glob("data/daily-" + board_name + "-*.txt"))[-1]
+    file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))[-1]
+    # file_name = sorted(glob.glob("data/daily-" + board_name + "-*.txt"))[-1]
     print('compare the file with：' + file_name)
 
     try:
@@ -434,11 +434,15 @@ def build_new_card_stat(cards_info, board_name):
         if card_id not in snapshot_cards_info.keys():
             member_stat[member_id]['new_work_hours'] += card_info['actual_hours']
 
-            if u'新增' in str(card_info['label_name']):
+            if u'新增' in str(card_info['label_name']) or 'None' == str(card_info['label_name']):
                 member_stat[member_id]['new_work_label'][card_info['label_name']] += card_info['actual_hours']
         else:
             member_stat[member_id]['plan_hours'] += card_info['plan_hours']
             member_stat[member_id]['actual_hours'] += card_info['actual_hours']
+            if member_id == '59891d2fb0f9d28b1da870a9':
+                print(card_info)
+
+    #print(member_stat)
 
     return member_stat
 

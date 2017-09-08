@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -23,17 +22,21 @@ def draw_bar_chart(workloads):
     label_hours = []
     labels = [value['new_work_label'] for value in member_stat.values()]
     label_names = labels[0].keys()
+    bar_colors_palette = ["#61A0A8", "#91C7AE", "#749F83", "#F3F3F3", "#CA8622", "#BDA29A"]
 
     for label_name in label_names:
         label_hours.append([label[label_name] for label in labels])
-    means_label_hours = tuple(label_hours[l] for l in range(len(label_hours)))
-    print(type(means_label_hours))
+
+    label_hours_tuple = list(map(tuple, label_hours))
+    print(label_names)
+    print(label_hours_tuple)
 
     for name in member_stat:
         member_name.append(name)
         plan_hours.append(member_stat[name]['plan_hours'])
         actual_hours.append(member_stat[name]['actual_hours'])
         new_work_hours.append(member_stat[name]['new_work_hours'])
+
 
     member_name = tuple(member_name)
     means_plan_hours = tuple(plan_hours)
@@ -44,12 +47,21 @@ def draw_bar_chart(workloads):
     bar_width = 0.3
 
     opacity = 0.85
+    #for i, label_hour in enumerate(label_hours_tuple):
+    #    plt.bar(index + bar_width, label_hours_tuple[label_hour], bar_width, alpha=opacity, color=bar_colors_palette[i])
     rects_plan_hours = plt.bar(index - bar_width, means_plan_hours, bar_width, alpha=opacity, color='#4783c1', label='plan_hours')
     rects_actual_hours = plt.bar(index, means_actual_hours, bar_width, alpha=opacity, color='#c45247', label='actual_hours')
-    rects_actual_hour = plt.bar(index + bar_width, means_actual_hours, bar_width, alpha=opacity, color='#c45247',
-                                 label='actual_hours')
-    rects_new_hours = plt.bar(index + bar_width, means_new_work_hours, bar_width, alpha=opacity, color='#9bbd4f',
-                                 label='new_work_hours', bottom=means_actual_hours)
+
+    for i in range(len(label_hours_tuple)):
+        label_hours_tuple[i] = np.array(label_hours_tuple[i])
+        plt.bar(index + bar_width, label_hours_tuple[i], bar_width, alpha=opacity, color=bar_colors_palette[i],
+                bottom=np.sum(label_hours_tuple[0:i], axis=0))
+
+    # plt.bar(index + bar_width, label_hours_tuple[0], bar_width, alpha=opacity, color=bar_colors_palette[3])
+    # plt.bar(index + bar_width, label_hours_tuple[1], bar_width, alpha=opacity, color=bar_colors_palette[1],
+    #         bottom=np.sum(label_hours_tuple[0], axis=0))
+    # rects_new_hours = plt.bar(index + bar_width, label_hours_tuple[2], bar_width, alpha=opacity, color='#9bbd4f',
+    #                              label='new_work_hours', bottom=np.sum(label_hours_tuple[0:2], axis=0))
 
     plt.xlabel('member_name')
     plt.ylabel('hours')
@@ -61,11 +73,11 @@ def draw_bar_chart(workloads):
 
     add_labels(rects_plan_hours)
     add_labels(rects_actual_hours)
-    add_labels(rects_new_hours)
+    #add_labels(rects_new_hours)
 
     plt.tight_layout()
     plt.savefig('img/work_hours_chart.png')
-    # plt.show()
+    plt.show()
 
 
 # if __name__ == '__main__':

@@ -68,5 +68,5 @@ def send_email(board_name, sender, receiver, username, password):
         smtp.sendmail(sender, receiver.split(','), msg.as_string())
         smtp.quit()
         print('send email success')
-    except smtplib.SMTPException:
-        print('Error')
+    except smtplib.SMTPException as e:
+        print('Error: ' + str(e))
