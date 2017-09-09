@@ -436,13 +436,12 @@ def build_new_card_stat(cards_info, board_name):
 
             if u'新增' in str(card_info['label_name']) or 'None' == str(card_info['label_name']):
                 member_stat[member_id]['new_work_label'][card_info['label_name']] += card_info['actual_hours']
+            if member_id == '59891d2fb0f9d28b1da870a9':
+                print(card_info)
+                print('--------------------')
         else:
             member_stat[member_id]['plan_hours'] += card_info['plan_hours']
             member_stat[member_id]['actual_hours'] += card_info['actual_hours']
-            if member_id == '59891d2fb0f9d28b1da870a9':
-                print(card_info)
-
-    #print(member_stat)
 
     return member_stat
 
@@ -494,7 +493,7 @@ def set_board_info():
             list_name = "^TODO|^DOING$"
             action = "new_iteration"
         elif sys.argv[1] == 'daily_cards':
-            list_name = "^TODO|^DOING$"
+            list_name = "^TODO|^DOING$|^DONE$"
             action = "daily_cards"
         elif sys.argv[1] == 'new_card_stat':
             list_name = "^TODO|^DOING$|^DONE$"

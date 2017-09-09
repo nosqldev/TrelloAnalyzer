@@ -20,12 +20,14 @@ def draw_bar_chart(workloads):
     new_work_hours = []
     n_groups = len(member_stat)
     label_hours = []
+    label_names_list = []
     labels = [value['new_work_label'] for value in member_stat.values()]
     label_names = labels[0].keys()
-    bar_colors_palette = ["#61A0A8", "#91C7AE", "#749F83", "#F3F3F3", "#CA8622", "#BDA29A"]
+    bar_colors_palette = ["#6E7074", "#61A0A8", "#749F83", "#BDA29A", "#91C7AE", "#91C7AE"]
 
     for label_name in label_names:
         label_hours.append([label[label_name] for label in labels])
+        label_names_list.append(label_name)
 
     label_hours_tuple = list(map(tuple, label_hours))
 
@@ -50,7 +52,7 @@ def draw_bar_chart(workloads):
     for i in range(len(label_hours_tuple)):
         label_hours_tuple[i] = np.array(label_hours_tuple[i])
         rects_new_hours = plt.bar(index + bar_width, label_hours_tuple[i], bar_width, alpha=opacity, color=bar_colors_palette[i],
-                                  bottom=np.sum(label_hours_tuple[0:i], axis=0))
+                                  label=str(label_names_list[i]), bottom=np.sum(label_hours_tuple[0:i], axis=0))
         add_labels(rects_new_hours, np.sum(label_hours_tuple[0:i], axis=0) + label_hours_tuple[i]/2)
 
     plt.xlabel('member_name')
@@ -58,7 +60,7 @@ def draw_bar_chart(workloads):
     plt.title('work hours by members')
     plt.xticks(np.arange(5), member_name)
     hours_max_index = actual_hours.index(max(actual_hours))
-    plt.ylim(0, actual_hours[hours_max_index] + 20)
+    plt.ylim(0, actual_hours[hours_max_index] + 40)
     plt.legend(loc='best', fontsize=10)
 
     add_labels(rects_plan_hours, plan_hours)
