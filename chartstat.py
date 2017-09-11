@@ -60,7 +60,7 @@ def draw_bar_chart(workloads):
     plt.xlabel('member_name')
     plt.ylabel('hours')
     plt.title('work hours by members')
-    plt.xticks(np.arange(5), member_name)
+    plt.xticks(index, member_name)
     hours_max_index = actual_hours.index(max(actual_hours))
     plt.ylim(0, actual_hours[hours_max_index] + 40)
     plt.legend(loc='best', fontsize=10)
@@ -71,5 +71,3 @@ def draw_bar_chart(workloads):
     plt.tight_layout()
     plt.savefig('img/work_hours_chart.png')
     plt.show()
-
-

@@ -484,6 +484,7 @@ def do_compute_begin_day(iteration_cards, iteration_cards_id, daily_cards):
         'done_plan_hours': 0,
         'done_actual_hours': 0,
         'new_hours': 0,
+        'new_working_hours': 0,
         'total_actual_hours': 0
     }
 
@@ -504,6 +505,7 @@ def do_compute_daily_stat(iteration_cards_id, daily_cards):
         'done_plan_hours': 0,
         'done_actual_hours': 0,
         'new_hours': 0,
+        'new_working_hours': 0,
         'total_actual_hours': 0
     }
 
@@ -517,6 +519,10 @@ def do_compute_daily_stat(iteration_cards_id, daily_cards):
                 daily_info['done_actual_hours'] += daily_cards[daily_card_key]['actual_hours']
         else:
             daily_info['new_hours'] += daily_cards[daily_card_key]['actual_hours']
+
+            print(daily_cards[daily_card_key])
+            if re.search("^TODO|^DOING$", daily_cards[daily_card_key]['list_name'], re.I):
+                daily_info['new_working_hours'] += daily_cards[daily_card_key]['actual_hours']
 
     daily_info['total_actual_hours'] = daily_info['working_actual_hours'] + daily_info['new_hours']
 
