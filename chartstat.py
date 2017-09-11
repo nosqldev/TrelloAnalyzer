@@ -1,8 +1,10 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import rcParams
+rcParams['font.family'] = 'STHeiti'
 
 
 def add_labels(rects, pos):

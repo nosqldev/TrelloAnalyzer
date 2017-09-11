@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 # © Copyright 2017 jingmi. All Rights Reserved.
@@ -27,11 +27,12 @@ import urllib.request
 import re
 import sys
 import codecs
-import sendemail
-import chartstat
 import json
 from datetime import datetime
 import glob
+import chartstat
+import burndownchart
+import sendemail
 
 # {{{ global config
 g_app_key = None
@@ -293,14 +294,16 @@ def groupby_author(members_info, card_info):
                 'member_name': card_info['member_name'],
                 'plan_hours': 0,
                 'actual_hours': 0,
-                'new_work_hours': card_info['actual_hours']
+                'new_work_hours': card_info['actual_hours'],
+                'new_work_label': {}
             }
         else:
             members_info[member_id] = {
                 'member_name': card_info['member_name'],
                 'plan_hours': card_info['plan_hours'],
                 'actual_hours': card_info['actual_hours'],
-                'new_work_hours': 0
+                'new_work_hours': 0,
+                'new_work_label': {}
             }
 
 
@@ -337,8 +340,8 @@ def sum_workloads(all_cards_info, action, board_name):
 
         groupby_author(members_info, all_cards_info[card_id])
 
-    if action == "new_card_stat":
-        members_info = build_new_card_stat(all_cards_info, board_name)
+    if action == "cards_stat":
+        members_info = build_iteration_cards_stat(board_name, all_cards_info)
 
     workloads['member_stat'] = build_members_stat(members_info)
 
@@ -376,21 +379,35 @@ def cardinfo_turn_to_dict(all_cards_info):
 
 def save_cardinfo_to_json(cards_dict, board_name, action):
     if action == "new_iteration":
-        cards_info = {card_id: cards_dict[card_id] for card_id in cards_dict if
-                           re.search("^DOING|^TODO", cards_dict[card_id]['list_name'])}
+        cards_info = {card_id: cards_dict[card_id] for card_id in cards_dict
+                      if re.search("^DOING|^TODO", cards_dict[card_id]['list_name'])}
         file_name = "data/iteration-snapshot-"
     elif action == "daily_cards":
-        cards_info = {card_id: cards_dict[card_id] for card_id in cards_dict if
-                                re.search("^DOING|^TODO|^DONE$", cards_dict[card_id]['list_name'])}
+        cards_info = {card_id: cards_dict[card_id] for card_id in cards_dict
+                      if re.search("^DOING|^TODO|^DONE$", cards_dict[card_id]['list_name'])}
         file_name = "data/daily-"
 
     try:
-        with open(file_name + board_name + '-' + datetime.now().date().isoformat() + '.txt', 'w', encoding='utf-8') as f:
+        with open(file_name + board_name + '-' + datetime.now().date().isoformat() + '.txt', mode='w', encoding='utf-8') as f:
             json.dump(cards_info, f)
         print('save cards success')
     except IOError as e:
         print('write cards_info error: ' + str(e))
         sys.exit(-1)
+
+
+def read_cardinfo_from_json(file_name):
+
+    print('Read the file with：' + file_name)
+
+    try:
+        with open(file_name, 'r') as f:
+            snapshot_cards_info = json.load(f)
+    except IOError as e:
+        print('read cards_info error: ' + str(e))
+        sys.exit(-1)
+
+    return snapshot_cards_info
 
 
 def generate_member_stat_from_cards_info(cards_info):
@@ -410,40 +427,120 @@ def generate_member_stat_from_cards_info(cards_info):
     return member_stat
 
 
-def build_new_card_stat(cards_info, board_name):
+def build_iteration_cards_stat(board_name, cards_info):
     cards_info_keys = cards_info.keys()
-    new_cards_info = {}
-
-    member_stat = generate_member_stat_from_cards_info(cards_info)
-
-    file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))[-1]
-    # file_name = sorted(glob.glob("data/daily-" + board_name + "-*.txt"))[-1]
-    print('compare the file with：' + file_name)
-
-    try:
-        with open(file_name, 'r') as f:
-            snapshot_cards_info = json.load(f)
-    except IOError as e:
-        print('read cards_info error: ' + str(e))
+    file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))
+    if len(file_name) > 0:
+        file_name = file_name[-1]
+    else:
+        print("open data/iteration-snapshot-" + board_name + "-*.txt failed")
         sys.exit(-1)
+
+    iteration_cards_info = read_cardinfo_from_json(file_name)
+    member_stat = generate_member_stat_from_cards_info(cards_info)
 
     for card_id in cards_info_keys:
         member_id = cards_info[card_id]['member_id']
         card_info = cards_info[card_id]
 
-        if card_id not in snapshot_cards_info.keys():
+        if card_id not in iteration_cards_info.keys():
             member_stat[member_id]['new_work_hours'] += card_info['actual_hours']
-
             if u'新增' in str(card_info['label_name']) or 'None' == str(card_info['label_name']):
                 member_stat[member_id]['new_work_label'][card_info['label_name']] += card_info['actual_hours']
-            if member_id == '59891d2fb0f9d28b1da870a9':
-                print(card_info)
-                print('--------------------')
         else:
             member_stat[member_id]['plan_hours'] += card_info['plan_hours']
             member_stat[member_id]['actual_hours'] += card_info['actual_hours']
 
     return member_stat
+
+
+def glob_file_name(board_name):
+    iteration_snapshot_filename = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))
+    if len(iteration_snapshot_filename) > 0:
+        iteration_snapshot_filename = iteration_snapshot_filename[-1]
+    else:
+        print("open data/iteration-snapshot-" + board_name + "-*.txt failed")
+        sys.exit(-1)
+
+    begin_date = iteration_snapshot_filename[-14:-4]
+    daily_file_names = glob.glob("data/daily-" + board_name + "-*.txt")
+    daily_file_names = sorted(list(filter(lambda x: x[-14:-4] > begin_date, daily_file_names)))
+
+    return iteration_snapshot_filename, daily_file_names
+
+
+def batch_read_cardinfo_from_json(file_names):
+    daily_card_list = []
+    for file_name in file_names:
+        daily_card_list.append(read_cardinfo_from_json(file_name))
+
+    return daily_card_list
+
+
+def do_compute_begin_day(iteration_cards, iteration_cards_id, daily_cards):
+    daily_info = {
+        'working_plan_hours': 0,
+        'working_actual_hours': 0,
+        'done_plan_hours': 0,
+        'done_actual_hours': 0,
+        'new_hours': 0,
+        'total_actual_hours': 0
+    }
+
+    for card_key in iteration_cards:
+        daily_info['working_plan_hours'] += iteration_cards[card_key]['plan_hours']
+
+    for card_key in daily_cards:
+        if card_key in iteration_cards_id:
+            daily_info['working_actual_hours'] += daily_cards[card_key]['actual_hours']
+
+    return daily_info
+
+
+def do_compute_daily_stat(iteration_cards_id, daily_cards):
+    daily_info = {
+        'working_plan_hours': 0,
+        'working_actual_hours': 0,
+        'done_plan_hours': 0,
+        'done_actual_hours': 0,
+        'new_hours': 0,
+        'total_actual_hours': 0
+    }
+
+    for daily_card_key in daily_cards.keys():
+        if daily_card_key in iteration_cards_id:
+            if re.search("^TODO|^DOING$", daily_cards[daily_card_key]['list_name'], re.I):
+                daily_info['working_plan_hours'] += daily_cards[daily_card_key]['plan_hours']
+                daily_info['working_actual_hours'] += daily_cards[daily_card_key]['actual_hours']
+            elif re.search("^DONE$", daily_cards[daily_card_key]['list_name'], re.I):
+                daily_info['done_plan_hours'] += daily_cards[daily_card_key]['plan_hours']
+                daily_info['done_actual_hours'] += daily_cards[daily_card_key]['actual_hours']
+        else:
+            daily_info['new_hours'] += daily_cards[daily_card_key]['actual_hours']
+
+    daily_info['total_actual_hours'] = daily_info['working_actual_hours'] + daily_info['new_hours']
+
+    return daily_info
+
+
+def compute_daily_stat(iteration_card_info, daily_card_list, daily_file_names):
+    iteration_cards_id = set(iteration_card_info.keys())
+    daily_stat = []
+    daily_stat.append({'begin_day': do_compute_begin_day(iteration_card_info, iteration_cards_id, daily_card_list[-1])})
+
+    for i, daily_cards in enumerate(daily_card_list):
+        daily_stat_value = do_compute_daily_stat(iteration_cards_id, daily_cards)
+        daily_stat.append({daily_file_names[i][-14:-4]: daily_stat_value})
+
+    return daily_stat
+
+
+def build_burn_down_chart(board_name):
+    iteration_snapshot_filename, daily_file_names = glob_file_name(board_name)
+    iteration_card_info = read_cardinfo_from_json(iteration_snapshot_filename)
+    daily_card_list = batch_read_cardinfo_from_json(daily_file_names)
+    daily_stat = compute_daily_stat(iteration_card_info, daily_card_list, daily_file_names)
+    burndownchart.draw_burn_down_chart(daily_stat)
 
 
 def compute_list(board_name, list_name, action):
@@ -454,7 +551,8 @@ def compute_list(board_name, list_name, action):
     card_id_list = fetch_list_id_by_board(list_name)
 
     for i, card_list in enumerate(card_id_list):
-        print("\rfetching card info %d/%d" % (i+1, len(card_id_list)), end='', flush=True)
+        output_str = "\rfetching card info %d/%d" % (i + 1, len(card_id_list))
+        sys.stdout.write(output_str)
         cards_info = get_cards_info(card_list['id'], board_members)
         [h.update({'list_name': card_list['name']}) for h in cards_info]
         cards_list.extend(cards_info)
@@ -472,40 +570,50 @@ def compute_list(board_name, list_name, action):
             workloads = sum_workloads(cards_dict, action, board_name)
             show(board_name, list_name, workloads)
             chartstat.draw_bar_chart(workloads)
-            # sendemail.send_email(board_name, g_sender, g_receiver, g_username, g_password)
+            sendemail.send_email(board_name, g_sender, g_receiver, g_username, g_password)
     else:
         print('The list is empty！')
 
 
 def set_board_info():
     global g_board_id
-    action = ""
-    list_name = "^TODO|^DOING$|^DONE$"
     board_info = fetch_board_by_user()
 
-    if len(sys.argv) == 2:
-        print(board_info)
-        g_board_id = input("please input a board_id：")
+    print(board_info)
+    g_board_id = input("please input a board_id：")
 
-        if sys.argv[1] == 'board':
-            list_name = input("please input a list name：").upper()
-        elif sys.argv[1] == 'new_iteration':
-            list_name = "^TODO|^DOING$"
-            action = "new_iteration"
-        elif sys.argv[1] == 'daily_cards':
-            list_name = "^TODO|^DOING$|^DONE$"
-            action = "daily_cards"
-        elif sys.argv[1] == 'new_card_stat':
-            list_name = "^TODO|^DOING$|^DONE$"
-            action = "new_card_stat"
+    if g_board_id in board_info:
+        board_name = board_info[g_board_id]
+    else:
+        print("board_id not exist: " + g_board_id)
+        sys.exit(-1)
 
-    board_name = board_info[g_board_id]
-    compute_list(board_name, list_name, action)
+    if len(sys.argv) != 2 or sys.argv[1] == 'board':
+        list_name = input("please input a list name：").upper()
+        action = ""
+        compute_list(board_name, list_name, action)
+    elif sys.argv[1] == 'new_iteration':
+        list_name = "^TODO|^DOING$"
+        action = "new_iteration"
+        compute_list(board_name, list_name, action)
+    elif sys.argv[1] == 'daily_cards':
+        list_name = "^TODO|^DOING$|^DONE$"
+        action = "daily_cards"
+        compute_list(board_name, list_name, action)
+    elif sys.argv[1] == 'cards_stat':
+        list_name = "^TODO|^DOING$|^DONE$"
+        action = "cards_stat"
+        compute_list(board_name, list_name, action)
+    elif sys.argv[1] == 'burn_down':
+        build_burn_down_chart(board_name)
+    else:
+        print("Unknown option")
 
 
 def main():
     read_config("./config.json")
     set_board_info()
+
 
 if __name__ == '__main__':
     main()
