@@ -1,15 +1,12 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy as np
 import matplotlib.pyplot as plt
-# from matplotlib import rcParams
-# rcParams['font.family'] = 'STHeiti'
-
-# daily_stat =
+import utils
 
 
 def draw_burn_down_chart(daily_stat):
+    utils.setup_font()
     print(daily_stat)
     iteration_date = [str(daily_stat[i].keys())[12:-3] for i in range(len(daily_stat))]
     print(iteration_date)
@@ -41,14 +38,16 @@ def draw_burn_down_chart(daily_stat):
 
     plt.xlabel('date')
     plt.ylabel('hours')
-    plt.title('burn down chart')
-    plt.margins(0)
+    plt.title('燃尽图')
+    # plt.margins(0)
+    plt.subplots_adjust(bottom=0)
     plt.xticks(x_date, iteration_date, rotation=40)
     hours_max_index = working_plan_hours.index(max(working_plan_hours))
     hours_min_index = new_hours.index(min(new_hours))
     plt.ylim(new_hours[hours_min_index], working_plan_hours[hours_max_index] + 100)
     plt.legend(loc='best', fontsize=10)
 
+    plt.grid(ls='dashed', dash_joinstyle='round', color='#cccccc')
     plt.tight_layout()
     plt.savefig('img/burn_down_chart.png')
     plt.show()

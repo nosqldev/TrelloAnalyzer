@@ -3,8 +3,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
-rcParams['font.family'] = 'STHeiti'
+import utils
 
 
 def add_labels(rects, pos):
@@ -15,6 +14,7 @@ def add_labels(rects, pos):
 
 
 def draw_bar_chart(workloads):
+    utils.setup_font()
     member_stat = workloads['member_stat']
     member_name = []
     plan_hours = []

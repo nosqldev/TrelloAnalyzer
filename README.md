@@ -14,5 +14,5 @@ TrelloAnalyzer lets you measure time-cost of your project as well as track your 
 
 
 ### 运行说明：
-- **./analyse.py new_iteration**: Save a snapshot when you start an iteration
-- **./analyse.py new_card_stat**: Use the snapshot to count new cards when the iteration ends
+- **./analyse.py new_iteration**: Save a snapshot before you start an iteration
+- **./analyse.py new_cards_stat**: Use the snapshot to count new cards
