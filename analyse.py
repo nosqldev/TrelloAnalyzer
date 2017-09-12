@@ -378,6 +378,8 @@ def cardinfo_turn_to_dict(all_cards_info):
 
 
 def save_cardinfo_to_json(cards_dict, board_name, action):
+    cards_info = {}
+
     if action == "new_iteration":
         cards_info = {card_id: cards_dict[card_id] for card_id in cards_dict
                       if re.search("^DOING|^TODO", cards_dict[card_id]['list_name'])}
@@ -485,28 +487,33 @@ def do_compute_begin_day(iteration_cards, iteration_cards_id, daily_cards):
         'done_actual_hours': 0,
         'new_hours': 0,
         'new_working_hours': 0,
-        'total_actual_hours': 0
+        'total_actual_hours': 0,
+        'in_daily_working_actual_hours': 0
     }
 
     for card_key in iteration_cards:
         daily_info['working_plan_hours'] += iteration_cards[card_key]['plan_hours']
+        daily_info['working_actual_hours'] += iteration_cards[card_key]['actual_hours']
 
-    for card_key in daily_cards:
-        if card_key in iteration_cards_id:
-            daily_info['working_actual_hours'] += daily_cards[card_key]['actual_hours']
+    # for card_key in daily_cards:
+    #     if card_key in iteration_cards_id:
+    #         daily_info['in_daily_working_actual_hours'] += daily_cards[card_key]['actual_hours']
+
+    daily_info['total_actual_hours'] = daily_info['working_actual_hours']
 
     return daily_info
 
 
 def do_compute_daily_stat(iteration_cards_id, daily_cards):
     daily_info = {
-        'working_plan_hours': 0,
-        'working_actual_hours': 0,
-        'done_plan_hours': 0,
-        'done_actual_hours': 0,
-        'new_hours': 0,
-        'new_working_hours': 0,
-        'total_actual_hours': 0
+        'working_plan_hours': 0,  # TodoList ＋ DoingList 任务计划耗时
+        'working_actual_hours': 0,  # TodoList ＋ DoingList 任务实际耗时
+        'done_plan_hours': 0,  # DoneList 中所有卡片的计划耗时
+        'done_actual_hours': 0,  # DoneList 中所有卡片的实际耗时
+        'new_hours': 0,             # TodoList + DoingList + DoneList 所有新增卡片的实际耗时
+        'new_working_hours': 0,     # TodoList + DoingList 所有新增卡片的实际耗时
+        'total_actual_hours': 0,     # TodoList + DoingList 所有现有卡片和新增卡片的实际耗时
+        'in_daily_working_actual_hours': 0
     }
 
     for daily_card_key in daily_cards.keys():
@@ -517,10 +524,12 @@ def do_compute_daily_stat(iteration_cards_id, daily_cards):
             elif re.search("^DONE$", daily_cards[daily_card_key]['list_name'], re.I):
                 daily_info['done_plan_hours'] += daily_cards[daily_card_key]['plan_hours']
                 daily_info['done_actual_hours'] += daily_cards[daily_card_key]['actual_hours']
+
+            daily_info['in_daily_working_actual_hours'] += daily_cards[daily_card_key]['actual_hours']
+
         else:
             daily_info['new_hours'] += daily_cards[daily_card_key]['actual_hours']
 
-            print(daily_cards[daily_card_key])
             if re.search("^TODO|^DOING$", daily_cards[daily_card_key]['list_name'], re.I):
                 daily_info['new_working_hours'] += daily_cards[daily_card_key]['actual_hours']
 

@@ -42,7 +42,6 @@ def draw_bar_chart(workloads):
     member_name = tuple(member_name)
     plan_hours = tuple(plan_hours)
     actual_hours = tuple(actual_hours)
-    new_work_hours = tuple(new_work_hours)
 
     index = np.arange(n_groups)
     bar_width = 0.3
