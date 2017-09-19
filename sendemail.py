@@ -53,9 +53,11 @@ def send_email(board_name, sender, receiver, username, password):
     subject = board_name + " 迭代任务统计"
 
     msg = MIMEMultipart('related')
-    msgtext = MIMEText(content + '<br><img src=\"cid:weekly\" border=\"1\">', 'html', 'utf-8')
+    msgtext = MIMEText(content + '<br><img src=\"cid:weekly\" border=\"1\">' +
+                       '<br><img src=\"cid:burn_down\" border=\"1\">', 'html', 'utf-8')
     msg.attach(msgtext)
     msg.attach(addimg("img/work_hours_chart.png", "weekly"))
+    msg.attach(addimg("img/burn_down_chart.png", "burn_down"))
     msg['Subject'] = Header(subject, 'utf-8')
     msg['From'] = sender
     msg['To'] = receiver
@@ -65,6 +67,7 @@ def send_email(board_name, sender, receiver, username, password):
         smtp.connect('smtp.meizu.com')
         # smtp.set_debuglevel(1)
         smtp.login(username, password)
+        print('\n------------> Send email...')
         smtp.sendmail(sender, receiver.split(','), msg.as_string())
         smtp.quit()
         print('send email success')
