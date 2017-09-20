@@ -34,6 +34,7 @@ import utils
 import chartstat
 import burndowndata
 import sendemail
+import getopt
 
 # {{{ global config
 g_app_key = None
@@ -44,6 +45,7 @@ g_sender = None
 g_receiver = None
 g_username = None
 g_password = None
+g_crontab_style = False
 # }}}
 # {{{ pattern config
 workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*[hH]\s*[)）]'
@@ -127,11 +129,12 @@ def read_config(filepath):
     g_app_key = config['app_key']
     g_token = config['token']
     g_user_id = config['user_id']
-    g_board_id = config['board_id']
     g_sender = config['sender']
     g_receiver = config['receiver']
     g_username = config['username']
     g_password = config['password']
+    if 'board_id' in config:
+        g_board_id = config['board_id']
 
 
 def basic_replace(url):
@@ -447,12 +450,12 @@ def compute_list(board_name, list_name, action):
     cards_list = []
     lists_name = []
     board_members = fetch_members_by_board()
-
     card_id_list = fetch_list_id_by_board(list_name)
 
     for i, card_list in enumerate(card_id_list):
-        output_str = "\rfetching card info %d/%d" % (i + 1, len(card_id_list))
-        sys.stdout.write(output_str)
+        if not g_crontab_style:
+            output_str = "\rfetching card info %d/%d" % (i + 1, len(card_id_list))
+            sys.stdout.write(output_str)
         cards_info = get_cards_info(card_list['id'], board_members)
         [h.update({'list_name': card_list['name']}) for h in cards_info]
         cards_list.extend(cards_info)
@@ -477,11 +480,23 @@ def compute_list(board_name, list_name, action):
 
 
 def set_board_info():
+    global g_crontab_style
     global g_board_id
+    action = ""
     board_info = fetch_board_by_user()
 
-    print(board_info)
-    g_board_id = input("please input a board_id：")
+    optlist, args = getopt.getopt(sys.argv[1:], "a:b:c")
+    if '-c' in [item[0] for item in optlist]:
+        g_crontab_style = True
+    for item in optlist:
+        if item[0] == '-b':
+            g_board_id = item[1]
+        if item[0] == '-a':
+            action = item[1]
+
+    if not g_crontab_style:
+        print(board_info)
+        g_board_id = input("please input a board_id：")
 
     if g_board_id in board_info:
         board_name = board_info[g_board_id]
@@ -489,24 +504,26 @@ def set_board_info():
         print("board_id not exist: " + g_board_id)
         sys.exit(-1)
 
-    if len(sys.argv) != 2 or sys.argv[1] == 'board':
+    if 'board' in args:
         list_name = input("please input a list name：").upper()
-        action = ""
         compute_list(board_name, list_name, action)
-    elif sys.argv[1] == 'new_iteration':
+    elif 'new_iteration' in args:
         list_name = "^TODO|^DOING$"
         action = "new_iteration"
         compute_list(board_name, list_name, action)
-    elif sys.argv[1] == 'daily_cards':
+    elif 'daily_cards' in args:
         list_name = "^TODO|^DOING$|^DONE$"
         action = "daily_cards"
         compute_list(board_name, list_name, action)
-    elif sys.argv[1] == 'cards_stat':
+    elif 'cards_stat' in args:
         list_name = "^TODO|^DOING$|^DONE$"
         action = "cards_stat"
         compute_list(board_name, list_name, action)
-    elif sys.argv[1] == 'burn_down':
+    elif 'burn_down' in args:
         burndowndata.build_burn_down_chart(board_name)
+    elif len(args) == 0:
+        list_name = "^TODO|^DOING$|^DONE$"
+        compute_list(board_name, list_name, action)
     else:
         print("Unknown option")
 

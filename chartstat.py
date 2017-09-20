@@ -70,4 +70,4 @@ def draw_bar_chart(workloads):
     plt.tight_layout()
     plt.savefig('img/work_hours_chart.png')
     print('------------> Save the bar chart successfully.')
-    plt.show()
+    # plt.show()
