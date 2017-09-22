@@ -35,6 +35,7 @@ import chartstat
 import burndowndata
 import sendemail
 import getopt
+import time
 
 # {{{ global config
 g_app_key = None
@@ -473,7 +474,6 @@ def compute_list(board_name, list_name, action):
             workloads = sum_workloads(cards_dict, action, board_name)
             show(board_name, list_name, workloads)
             chartstat.draw_bar_chart(workloads)
-            burndowndata.build_burn_down_chart(board_name)
             sendemail.send_email(board_name, g_sender, g_receiver, g_username, g_password)
     else:
         print('The list is empty！')
@@ -488,6 +488,7 @@ def set_board_info():
     optlist, args = getopt.getopt(sys.argv[1:], "a:b:c")
     if '-c' in [item[0] for item in optlist]:
         g_crontab_style = True
+        print("### launched  %s ###" % time.strftime('%Y-%m-%d %X', time.localtime()))
     for item in optlist:
         if item[0] == '-b':
             g_board_id = item[1]
@@ -519,9 +520,9 @@ def set_board_info():
         list_name = "^TODO|^DOING$|^DONE$"
         action = "cards_stat"
         compute_list(board_name, list_name, action)
-    elif 'burn_down' in args:
+    elif 'burn_down' in args or (len(args) == 0 and action == 'burn_down'):
         burndowndata.build_burn_down_chart(board_name)
-    elif len(args) == 0:
+    elif len(args) == 0 and action != 'burn_down':
         list_name = "^TODO|^DOING$|^DONE$"
         compute_list(board_name, list_name, action)
     else:

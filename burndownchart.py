@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import utils
 
@@ -23,8 +25,8 @@ def draw_burn_down_chart(daily_stat):
         working_plan_hours.append(daily_stat[i][iteration_date[i]]['working_plan_hours'])
         new_hours.append(-daily_stat[i][iteration_date[i]]['new_hours'])
         new_working_hours.append(daily_stat[i][iteration_date[i]]['new_working_hours'])
-        in_daily_working_actual_hours.append(daily_stat[i][iteration_date[i]]['in_daily_working_actual_hours']
-                                             - daily_stat[0][iteration_date[0]]['working_actual_hours'])
+        in_daily_working_actual_hours.append(daily_stat[0][iteration_date[0]]['working_actual_hours'] -
+                                            daily_stat[i][iteration_date[i]]['in_daily_working_actual_hours'])
 
     in_daily_working_actual_hours[0] = 0
 
