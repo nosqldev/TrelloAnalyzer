@@ -1,5 +1,7 @@
 #!/bin/sh
 
+wget "http://file.learn-x.com/simhei.ttf" -O /tmp/simhei.ttf
+
 if [ ! -f /opt/conda/lib/python3.6/site-packages/matplotlib/mpl-data/fonts/ttf/simhei.ttf ];
 then
     cp /tmp/simhei.ttf /opt/conda/lib/python3.6/site-packages/matplotlib/mpl-data/fonts/ttf/
