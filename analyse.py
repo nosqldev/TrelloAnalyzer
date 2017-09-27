@@ -49,7 +49,7 @@ g_password = None
 g_crontab_style = False
 # }}}
 # {{{ pattern config
-workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*[hH]\s*[)）]'
+workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*[hHdD]\s*[)）]'
 requirement_pattern = u'[\[【［]\s*(.*)\s*[】］\]]\s*'
 # }}}
 # {{{ class colors

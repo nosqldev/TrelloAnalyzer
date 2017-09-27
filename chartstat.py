@@ -11,7 +11,7 @@ import utils
 def add_labels(rects, pos):
     for i, rect in enumerate(rects):
         if rect.get_height() > 0:
-            plt.text(rect.get_x() + rect.get_width() / 2, pos[i], rect.get_height(), ha='center', va='bottom')
+            plt.text(rect.get_x() + rect.get_width() / 2, pos[i], rect.get_height(), ha='center', va='bottom', fontsize=8.5)
             rect.set_edgecolor('white')
 
 
@@ -46,7 +46,7 @@ def draw_bar_chart(workloads):
     actual_hours = tuple(actual_hours)
 
     index = np.arange(n_groups)
-    bar_width = 0.3
+    bar_width = 0.32
 
     opacity = 0.85
     rects_plan_hours = plt.bar(index - bar_width, plan_hours, bar_width, alpha=opacity, color='#4783c1', label='plan_hours')
@@ -63,8 +63,9 @@ def draw_bar_chart(workloads):
     plt.title('work hours by members')
     plt.xticks(index, member_name)
     hours_max_index = actual_hours.index(max(actual_hours))
+
     plt.ylim(0, actual_hours[hours_max_index] + 40)
-    plt.legend(loc='best', fontsize=10)
+    plt.legend(loc='best', fontsize=8)
 
     add_labels(rects_plan_hours, plan_hours)
     add_labels(rects_actual_hours, actual_hours)

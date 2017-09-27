@@ -34,7 +34,6 @@ def content_html():
     content = '<div><strong>' + list_name + '</strong></div><br/>' + \
               '<div style="color:red">' + card_stat + '</div><br/>' + \
               '<div>' + label_stat + '</div><br/>' + \
-              '<div>' + member_stat + '</div><br/>' + \
               '<div>' + requirement_stat + '</div>'
 
     return content
