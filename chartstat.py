@@ -27,7 +27,7 @@ def draw_bar_chart(workloads):
     label_names_list = []
     labels = [value['new_work_label'] for value in member_stat.values()]
     label_names = labels[0].keys()
-    bar_colors_palette = ["#6E7074", "#61A0A8", "#749F83", "#BDA29A", "#91C7AE", "#91C7AE"]
+    bar_colors_palette = ["#6E7074", "#61A0A8", "#749F83", "#BDA29A", "#91C7AE", "#D48265"]
 
     for label_name in label_names:
         label_hours.append([label[label_name] for label in labels])
