@@ -298,7 +298,7 @@ def groupby_label(label_stat, card_info):
     label_name = card_info['label_name']
     actual_hours = card_info['actual_hours']
 
-    if label_name is not None and label_name != 'null':
+    if label_name is not None:
         label_name.replace(' ', '')
         if label_name in label_stat:
             label_stat[label_name] += actual_hours
@@ -322,8 +322,7 @@ def generate_member_stat_from_cards_info(cards_info):
     all_labels = list(set([value['label_name'] for value in cards_info.values()]))
 
     for card_id in cards_info:
-        member_stat[cards_info[card_id]['member_id']] = {
-                                                            'member_name': cards_info[card_id]['member_name'],
+        member_stat[cards_info[card_id]['member_name']] = {
                                                             'plan_hours': 0,
                                                             'actual_hours': 0,
                                                             'new_work_hours': 0,
@@ -333,7 +332,7 @@ def generate_member_stat_from_cards_info(cards_info):
     return member_stat
 
 
-def build_iteration_cards_stat(board_name, cards_info):
+def build_members_stat(board_name, cards_info):
     cards_info_keys = cards_info.keys()
     file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))
     if len(file_name) > 0:
@@ -346,33 +345,17 @@ def build_iteration_cards_stat(board_name, cards_info):
     member_stat = generate_member_stat_from_cards_info(cards_info)
 
     for card_id in cards_info_keys:
-        member_id = cards_info[card_id]['member_id']
+        member_name = cards_info[card_id]['member_name']
         card_info = cards_info[card_id]
 
         if card_id not in iteration_cards_info.keys():
-            member_stat[member_id]['new_work_hours'] += card_info['actual_hours']
-
-            # if 'None' == str(card_info['label_name']):
-            #     card_info['label_name'] = 'None'
-            #     print(card_info['label_name'])
+            member_stat[member_name]['new_work_hours'] += card_info['actual_hours']
 
             if u'新增' in str(card_info['label_name']) or 'None' == str(card_info['label_name']):
-                member_stat[member_id]['new_work_label'][card_info['label_name']] += card_info['actual_hours']
+                member_stat[member_name]['new_work_label'][card_info['label_name']] += card_info['actual_hours']
         else:
-            member_stat[member_id]['plan_hours'] += card_info['plan_hours']
-            member_stat[member_id]['actual_hours'] += card_info['actual_hours']
-
-    return member_stat
-
-
-def build_members_stat(members_info):
-    member_stat = {}
-    members_info_keys = members_info.keys()
-
-    for member_id in members_info_keys:
-        member_name = members_info[member_id]['member_name']
-        member_stat[member_name] = members_info[member_id]
-        del(member_stat[member_name]['member_name'])
+            member_stat[member_name]['plan_hours'] += card_info['plan_hours']
+            member_stat[member_name]['actual_hours'] += card_info['actual_hours']
 
     return member_stat
 
@@ -395,8 +378,7 @@ def sum_workloads(all_cards_info, board_name):
         else:
             workloads['card_stat']['无预估工时卡片数'] += 1
 
-    members_info = build_iteration_cards_stat(board_name, all_cards_info)
-    workloads['member_stat'] = build_members_stat(members_info)
+    workloads['member_stat'] = build_members_stat(board_name, all_cards_info)
 
     if len(workloads['requirement_stat']) == 0:
         workloads['requirement_stat'] = {'requirement': 0}
