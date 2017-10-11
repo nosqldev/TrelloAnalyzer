@@ -1,4 +1,7 @@
-#!/bin/sh
+#!/bin/bash
+
+service cron start
+crontab crontab.txt
 
 wget "http://file.learn-x.com/simhei.ttf" -O /tmp/simhei.ttf
 

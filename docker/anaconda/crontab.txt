@@ -1,0 +1,1 @@
+13 * * * * export LANG="C.UTF-8" && cd /work && /opt/conda/bin/python3 /work/analyse.py -c -b tfJFNEQk -a cards_stat >> /tmp/ta.log
