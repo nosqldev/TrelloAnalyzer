@@ -18,8 +18,7 @@ def setup_font():
 
 
 def read_cardinfo_from_json(file_name):
-
-    print('Read the file with：' + file_name)
+    #print('Read the file with：' + file_name)
 
     try:
         with open(file_name, 'r') as f:
