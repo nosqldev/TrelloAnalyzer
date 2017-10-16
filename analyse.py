@@ -35,6 +35,7 @@ import chartstat
 import burndowndata
 import sendemail
 import getopt
+import time
 
 # {{{ global config
 g_app_key = None
@@ -48,7 +49,7 @@ g_password = None
 g_crontab_style = False
 # }}}
 # {{{ pattern config
-workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*[hH]\s*[)）]'
+workload_pattern = u'[(（]\s*(\d+(?:\.\d+)?)\s*[hHdD]\s*[)）]'
 requirement_pattern = u'[\[【［]\s*(.*)\s*[】］\]]\s*'
 # }}}
 # {{{ class colors
@@ -234,7 +235,7 @@ def get_cards_info(list_id, board_members):
             'member_id': None,
             'member_name': None,
             'label_id': None,
-            'label_name': None,
+            'label_name': 'None',
             'plan_hours': 0,
             'actual_hours': 0
         }
@@ -246,6 +247,7 @@ def get_cards_info(list_id, board_members):
             card_info['member_name'] = board_members[member_id]
 
         labels = item['labels']
+
         if len(labels) > 0 and labels[0] is not None:
             label = labels[0]
             card_info['label_id'] = label['id']
@@ -258,116 +260,6 @@ def get_cards_info(list_id, board_members):
         available_cards_info.append(card_info)
 
     return available_cards_info
-
-
-def groupby_label(label_stat, card_info):
-    label_name = card_info['label_name']
-    actual_hours = card_info['actual_hours']
-
-    if label_name is not None and label_name != 'null':
-        label_name.replace(' ', '')
-        if label_name in label_stat:
-            label_stat[label_name] += actual_hours
-        else:
-            label_stat[label_name] = actual_hours
-
-
-def groupby_requirement(requirement_stat, card_name, hours):
-    requirement_name = get_card_name_by_pattern(card_name, requirement_pattern)
-
-    if len(requirement_name) > 0:
-        if requirement_name[0] in requirement_stat:
-            requirement_stat[requirement_name[0]] += hours
-        else:
-            requirement_stat[requirement_name[0]] = hours
-
-
-def groupby_author(members_info, card_info):
-    member_id = card_info['member_id']
-    label_name = card_info['label_name']
-
-    if member_id in members_info:
-        if label_name == '新增' or label_name == '紧急':
-            members_info[member_id]['new_work_hours'] += card_info['actual_hours']
-        else:
-            members_info[member_id]['plan_hours'] += card_info['plan_hours']
-            members_info[member_id]['actual_hours'] += card_info['actual_hours']
-    else:
-        if label_name == '新增' or label_name == '紧急':
-            members_info[member_id] = {
-                'member_name': card_info['member_name'],
-                'plan_hours': 0,
-                'actual_hours': 0,
-                'new_work_hours': card_info['actual_hours'],
-                'new_work_label': {}
-            }
-        else:
-            members_info[member_id] = {
-                'member_name': card_info['member_name'],
-                'plan_hours': card_info['plan_hours'],
-                'actual_hours': card_info['actual_hours'],
-                'new_work_hours': 0,
-                'new_work_label': {}
-            }
-
-
-def build_members_stat(members_info):
-    member_stat = {}
-    members_info_keys = members_info.keys()
-
-    for member_id in members_info_keys:
-        member_name = members_info[member_id]['member_name']
-        member_stat[member_name] = members_info[member_id]
-        del(member_stat[member_name]['member_name'])
-
-    return member_stat
-
-
-def sum_workloads(all_cards_info, action, board_name):
-    workloads = {
-        'card_stat': {'总预估工时': 0, '无预估工时卡片数': 0},
-        'label_stat': {},
-        'member_stat': {},
-        'requirement_stat': {}
-    }
-    members_info = {}
-
-    for card_id in all_cards_info.keys():
-        plan_hours = all_cards_info[card_id]['plan_hours']
-        if plan_hours > 0:
-            hours = float(plan_hours)
-            workloads['card_stat']['总预估工时'] += hours
-            groupby_label(workloads['label_stat'], all_cards_info[card_id])
-            groupby_requirement(workloads['requirement_stat'], all_cards_info[card_id]['card_name'], hours)
-        else:
-            workloads['card_stat']['无预估工时卡片数'] += 1
-
-        groupby_author(members_info, all_cards_info[card_id])
-
-    if action == "cards_stat":
-        members_info = build_iteration_cards_stat(board_name, all_cards_info)
-
-    workloads['member_stat'] = build_members_stat(members_info)
-
-    if len(workloads['requirement_stat']) == 0:
-        workloads['equirement_stat'] = {'requirement': 0}
-
-    return workloads
-
-
-def show(board_name, list_name, workloads):
-    origin = sys.stdout
-    file = codecs.open('data/task_stat.txt', 'w', encoding='utf-8')
-    sys.stdout = file
-
-    print("[", board_name + "：" + list_name, "]")
-    print("总计：", workloads['card_stat'])
-    print("标签：", workloads['label_stat'])
-    print("成员：", workloads['member_stat'])
-    print("需求：", workloads['requirement_stat'])
-
-    sys.stdout = origin
-    file.close()
 
 
 def cardinfo_turn_to_dict(all_cards_info):
@@ -402,14 +294,35 @@ def save_cardinfo_to_json(cards_dict, board_name, action):
         sys.exit(-1)
 
 
+def groupby_label(label_stat, card_info):
+    label_name = card_info['label_name']
+    actual_hours = card_info['actual_hours']
+
+    if label_name is not None:
+        label_name.replace(' ', '')
+        if label_name in label_stat:
+            label_stat[label_name] += actual_hours
+        else:
+            label_stat[label_name] = actual_hours
+
+
+def groupby_requirement(requirement_stat, card_name, hours):
+    requirement_name = get_card_name_by_pattern(card_name, requirement_pattern)
+
+    if len(requirement_name) > 0:
+        if requirement_name[0] in requirement_stat:
+            requirement_stat[requirement_name[0]] += hours
+        else:
+            requirement_stat[requirement_name[0]] = hours
+
+
 def generate_member_stat_from_cards_info(cards_info):
     member_stat = {}
 
     all_labels = list(set([value['label_name'] for value in cards_info.values()]))
 
     for card_id in cards_info:
-        member_stat[cards_info[card_id]['member_id']] = {
-                                                            'member_name': cards_info[card_id]['member_name'],
+        member_stat[cards_info[card_id]['member_name']] = {
                                                             'plan_hours': 0,
                                                             'actual_hours': 0,
                                                             'new_work_hours': 0,
@@ -419,7 +332,7 @@ def generate_member_stat_from_cards_info(cards_info):
     return member_stat
 
 
-def build_iteration_cards_stat(board_name, cards_info):
+def build_members_stat(board_name, cards_info):
     cards_info_keys = cards_info.keys()
     file_name = sorted(glob.glob("data/iteration-snapshot-" + board_name + "-*.txt"))
     if len(file_name) > 0:
@@ -432,18 +345,60 @@ def build_iteration_cards_stat(board_name, cards_info):
     member_stat = generate_member_stat_from_cards_info(cards_info)
 
     for card_id in cards_info_keys:
-        member_id = cards_info[card_id]['member_id']
+        member_name = cards_info[card_id]['member_name']
         card_info = cards_info[card_id]
 
         if card_id not in iteration_cards_info.keys():
-            member_stat[member_id]['new_work_hours'] += card_info['actual_hours']
+            member_stat[member_name]['new_work_hours'] += card_info['actual_hours']
+
             if u'新增' in str(card_info['label_name']) or 'None' == str(card_info['label_name']):
-                member_stat[member_id]['new_work_label'][card_info['label_name']] += card_info['actual_hours']
+                member_stat[member_name]['new_work_label'][card_info['label_name']] += card_info['actual_hours']
         else:
-            member_stat[member_id]['plan_hours'] += card_info['plan_hours']
-            member_stat[member_id]['actual_hours'] += card_info['actual_hours']
+            member_stat[member_name]['plan_hours'] += card_info['plan_hours']
+            member_stat[member_name]['actual_hours'] += card_info['actual_hours']
 
     return member_stat
+
+
+def sum_workloads(all_cards_info, board_name):
+    workloads = {
+        'card_stat': {'总预估工时': 0, '无预估工时卡片数': 0},
+        'label_stat': {},
+        'member_stat': {},
+        'requirement_stat': {}
+    }
+
+    for card_id in all_cards_info.keys():
+        plan_hours = all_cards_info[card_id]['plan_hours']
+        if plan_hours > 0:
+            hours = float(plan_hours)
+            workloads['card_stat']['总预估工时'] += hours
+            groupby_label(workloads['label_stat'], all_cards_info[card_id])
+            groupby_requirement(workloads['requirement_stat'], all_cards_info[card_id]['card_name'], hours)
+        else:
+            workloads['card_stat']['无预估工时卡片数'] += 1
+
+    workloads['member_stat'] = build_members_stat(board_name, all_cards_info)
+
+    if len(workloads['requirement_stat']) == 0:
+        workloads['requirement_stat'] = {'requirement': 0}
+
+    return workloads
+
+
+def show(board_name, list_name, workloads):
+    origin = sys.stdout
+    file = codecs.open('data/task_stat.txt', 'w', encoding='utf-8')
+    sys.stdout = file
+
+    print("[", board_name + "：" + list_name, "]")
+    print("总计：", workloads['card_stat'])
+    print("标签：", workloads['label_stat'])
+    print("成员：", workloads['member_stat'])
+    print("需求：", workloads['requirement_stat'])
+
+    sys.stdout = origin
+    file.close()
 
 
 def compute_list(board_name, list_name, action):
@@ -470,10 +425,9 @@ def compute_list(board_name, list_name, action):
         if action == "new_iteration" or action == "daily_cards":
             save_cardinfo_to_json(cards_dict, board_name, action)
         else:
-            workloads = sum_workloads(cards_dict, action, board_name)
+            workloads = sum_workloads(cards_dict, board_name)
             show(board_name, list_name, workloads)
             chartstat.draw_bar_chart(workloads)
-            burndowndata.build_burn_down_chart(board_name)
             sendemail.send_email(board_name, g_sender, g_receiver, g_username, g_password)
     else:
         print('The list is empty！')
@@ -488,6 +442,7 @@ def set_board_info():
     optlist, args = getopt.getopt(sys.argv[1:], "a:b:c")
     if '-c' in [item[0] for item in optlist]:
         g_crontab_style = True
+        print("### launched  %s ###" % time.strftime('%Y-%m-%d %X', time.localtime()))
     for item in optlist:
         if item[0] == '-b':
             g_board_id = item[1]
@@ -519,9 +474,9 @@ def set_board_info():
         list_name = "^TODO|^DOING$|^DONE$"
         action = "cards_stat"
         compute_list(board_name, list_name, action)
-    elif 'burn_down' in args:
+    elif 'burn_down' in args or (len(args) == 0 and action == 'burn_down'):
         burndowndata.build_burn_down_chart(board_name)
-    elif len(args) == 0:
+    elif len(args) == 0 and action != 'burn_down':
         list_name = "^TODO|^DOING$|^DONE$"
         compute_list(board_name, list_name, action)
     else:
@@ -537,4 +492,3 @@ if __name__ == '__main__':
     main()
 
 # vim: set expandtab tabstop=4 shiftwidth=4 foldmethod=marker:
-

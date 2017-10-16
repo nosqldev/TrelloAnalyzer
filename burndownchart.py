@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import utils
 
@@ -23,8 +25,8 @@ def draw_burn_down_chart(daily_stat):
         working_plan_hours.append(daily_stat[i][iteration_date[i]]['working_plan_hours'])
         new_hours.append(-daily_stat[i][iteration_date[i]]['new_hours'])
         new_working_hours.append(daily_stat[i][iteration_date[i]]['new_working_hours'])
-        in_daily_working_actual_hours.append(daily_stat[i][iteration_date[i]]['in_daily_working_actual_hours']
-                                             - daily_stat[0][iteration_date[0]]['working_actual_hours'])
+        in_daily_working_actual_hours.append(daily_stat[0][iteration_date[0]]['working_actual_hours'] -
+                                            daily_stat[i][iteration_date[i]]['in_daily_working_actual_hours'])
 
     in_daily_working_actual_hours[0] = 0
 
@@ -49,10 +51,10 @@ def draw_burn_down_chart(daily_stat):
     plt.ylabel('hours')
     plt.title('燃尽图')
     plt.subplots_adjust(bottom=0)
-    plt.xticks(x_date, iteration_date, rotation=40)
+    # plt.xticks(x_date, iteration_date, rotation=40)
     hours_max_index = total_actual_hours.index(max(total_actual_hours))
     hours_min_index = new_hours.index(min(new_hours))
-    plt.ylim(new_hours[hours_min_index], total_actual_hours[hours_max_index] + 100)
+    plt.ylim(new_hours[hours_min_index], total_actual_hours[hours_max_index] + total_actual_hours[hours_max_index]*0.8)
     plt.legend(loc='best', fontsize=8)
 
     ax = plt.gca()
@@ -62,6 +64,8 @@ def draw_burn_down_chart(daily_stat):
     ax.spines['bottom'].set_position(('data', 0))
     ax.yaxis.set_ticks_position('left')
     ax.spines['left'].set_position(('data', 0))
+    ax.set_xticks(x_date)
+    ax.set_xticklabels(iteration_date, rotation=35)
 
     plt.grid(ls='dashed', dash_joinstyle='round', color='#cccccc')
     plt.tight_layout()
