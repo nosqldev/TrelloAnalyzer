@@ -54,7 +54,7 @@ def draw_burn_down_chart(daily_stat):
     # plt.xticks(x_date, iteration_date, rotation=40)
     hours_max_index = total_actual_hours.index(max(total_actual_hours))
     hours_min_index = new_hours.index(min(new_hours))
-    plt.ylim(new_hours[hours_min_index], total_actual_hours[hours_max_index] + 150)
+    plt.ylim(new_hours[hours_min_index], total_actual_hours[hours_max_index] + total_actual_hours[hours_max_index]*0.8)
     plt.legend(loc='best', fontsize=8)
 
     ax = plt.gca()
