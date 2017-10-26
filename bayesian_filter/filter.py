@@ -9,23 +9,27 @@ def get_test_words():
     test_words_list = []
     test_dict_list = []
     test_line = []
+    right_result = {}
     root_path = "../filter_data/test/"
     file_list = os.listdir(root_path)
-    test_file = os.path.join(root_path, file_list[0])
-    file = open(test_file)
 
-    while 1:
-        line = file.readline()
-        if not line:
-            break
-        test_line.append(line)
-        word_processed = word.file_word_process(line)
-        test_words_list.append(word_processed)
+    for file_name in file_list:
+        test_file = os.path.join(root_path, file_name)
+        file = open(test_file)
+
+        while 1:
+            line = file.readline()
+            if not line:
+                break
+            test_line.append(line)
+            right_result[line] = file_name[0:-4]
+            word_processed = word.file_word_process(line)
+            test_words_list.append(word_processed)
 
     for i in range(len(test_words_list)):
         test_dict_list.append(word.add_to_dict(test_words_list[i]))
 
-    return test_dict_list, test_line
+    return test_dict_list, test_line, right_result
 
 
 def get_interesting_words(test_dict):
@@ -69,8 +73,8 @@ def get_interesting_words(test_dict):
 
 def text_filter(text_prob_dict):
     text_prob_category_name = ''
-    text_prob_list = sorted((text_prob_dict[category_name] for category_name in text_prob_dict.keys()), reverse=True)
-    text_prob_value = text_prob_list[0]
+    text_prob_value = sorted((text_prob_dict[category_name] for category_name in text_prob_dict.keys()), reverse=True)[0]
+
     for category_name in text_prob_dict.keys():
         if text_prob_value == text_prob_dict[category_name]:
             text_prob_category_name = category_name
@@ -78,17 +82,37 @@ def text_filter(text_prob_dict):
     return text_prob_category_name
 
 
-def main():
-    test_dict_list, test_line = get_test_words()
-    text_prob = {}
+def cal_accuracy(text_prob_category, right_result):
+    right_count = 0
+    error_count = 0
+
+    for name in text_prob_category.keys():
+        if text_prob_category[name] == right_result[name]:
+            right_count += 1
+        else:
+            error_count += 1
+
+    print('rightCount:', right_count)
+    print('errorCount:', error_count)
+    print('Prediction accuracy:', right_count/(right_count+error_count))
+    return right_count/(right_count+error_count)
+
+
+def predictions():
+    test_dict_list, test_line, right_result = get_test_words()
+    text_prob_dict = {}
     text_prob_category = {}
 
     for i in range(len(test_dict_list)):
-        text_prob[test_line[i]] = get_interesting_words(test_dict_list[i])
-        text_prob_category[test_line[i]] = text_filter(text_prob[test_line[i]])
-    print(text_prob)
+        text_prob_dict[test_line[i]] = get_interesting_words(test_dict_list[i])
+        text_prob_category[test_line[i]] = text_filter(text_prob_dict[test_line[i]])
+
+    print(text_prob_dict)
     print(text_prob_category)
+    print(right_result)
+
+    cal_accuracy(text_prob_category, right_result)
 
 
 if __name__ == '__main__':
-    main()
+    predictions()
