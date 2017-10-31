@@ -15,7 +15,7 @@ def get_test_words():
 
     for file_name in file_list:
         test_file = os.path.join(root_path, file_name)
-        file = open(test_file)
+        file = open(test_file, 'r', encoding='utf-8')
 
         while 1:
             line = file.readline()

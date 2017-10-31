@@ -8,7 +8,7 @@ import jieba
 
 def get_stop_words():
     stop_list = []
-    for line in open('../filter_data/stopwords.txt'):
+    for line in open('../filter_data/stopwords.txt', 'r', encoding='utf-8'):
         stop_list.append(line[:len(line)-1])
 
     return stop_list
@@ -25,7 +25,7 @@ def file_word_process(contents):
     for seg in jieba.cut(contents):
         if seg not in stop_list:
             if seg != ' ':
-                words_list.append(seg.encode().decode('utf-8'))
+                words_list.append(seg)
 
     return words_list
 
@@ -38,7 +38,7 @@ def get_category_data():
 
     for category_name in category:
         category_file = os.path.join(root_path, category_name)
-        contents = open(category_file).read()
+        contents = open(category_file, encoding='utf-8').read()
         word_processed = file_word_process(contents)
         words_list.append(word_processed)
         category_list.append(category_name[:-4])
