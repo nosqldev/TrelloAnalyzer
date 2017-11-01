@@ -42,7 +42,7 @@ def get_test_words():
     return test_dict_list, test_line, right_result
 
 
-def get_interesting_words(test_dict, category_words_dict, count):
+def get_interesting_words(test_dict, category_words_dict):
     word_frequency_list = {}
     pw_time = {}
     text_prob_dict = {}
@@ -65,7 +65,6 @@ def get_interesting_words(test_dict, category_words_dict, count):
                 text_frequency += word_frequency_list[words][category_name]
         if text_frequency != 0:
             text_prob_dict[category_name] = text_frequency / len(category_words_dict[category_name])
-            # text_prob_dict[category_name] = text_frequency / count[category_name]
         else:
             text_prob_dict[category_name] = 0
 
@@ -121,16 +120,9 @@ def predictions():
     text_prob_dict = {}
     text_prob_category = {}
     category_words_dict = word.get_category_dict()
-    count = {}
-
-    for category_name in category_words_dict.keys():
-        n = 0
-        for words in category_words_dict[category_name]:
-            n += category_words_dict[category_name][words]
-        count[category_name] = n
 
     for i in range(len(test_dict_list)):
-        text_prob_dict[test_line[i]] = cal_bayes(get_interesting_words(test_dict_list[i], category_words_dict, count))
+        text_prob_dict[test_line[i]] = cal_bayes(get_interesting_words(test_dict_list[i], category_words_dict))
         text_prob_category[test_line[i]] = text_filter(text_prob_dict[test_line[i]])
 
     print('分类概率：')
