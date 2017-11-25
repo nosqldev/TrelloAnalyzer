@@ -4,42 +4,27 @@
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score
 import bayesian_filter.word as word
-import os
-import re
-import jieba
+from sklearn.grid_search import GridSearchCV
 
 
-def file_word_process(train_path):
-    word_line = []
-    word_label = []
-    stop_list = word.get_stop_words()
-    file_list = os.listdir(train_path)
-    for i, file_name in enumerate(file_list):
-        train_file = os.path.join(train_path, file_name)
-        file = open(train_file, 'r', encoding='utf-8')
+def get_best_params(x_train, y_train):
+    tuned_parameters = [{'alpha': [0.01, 0.1, 1]}]
+    scores = ['r2']
 
-        while 1:
-            line = file.readline()
+    for score in scores:
+        clf = GridSearchCV(MultinomialNB(), tuned_parameters, cv=5, scoring=score)
+        clf.fit(x_train, y_train)
+        print(clf.best_estimator_)
 
-            if not line:
-                break
-            line = re.sub(r'[^\u4e00-\u9fa5]', '', line)
-            line_fenci = jieba.cut(line)
-            line_fenci_stop = []
-            for seg in line_fenci:
-                if seg not in stop_list:
-                    if seg != ' ':
-                        line_fenci_stop.append(seg)
-            line_fenci_str = str(list(line_fenci_stop))[1:-1]
-            word_line.append(line_fenci_str)
-            word_label.append(i)
-    return word_line, word_label
+        for params, mean_score, scores in clf.grid_scores_:
+            print("%0.3f (+/-%0.03f) for %r" % (mean_score, scores.std() / 2, params))
+
+    return clf.best_estimator_
 
 
-def text_filter_for_sklearn():
-    train_line, train_labels = file_word_process("../filter_data/train/")
-    test_line, test_labels = file_word_process("../filter_data/test/")
+def text_filter_for_sklearn(train_line, train_labels, test_line, test_labels):
     count_v0 = CountVectorizer()
     count_v0.fit_transform(train_line)
     count_v1 = CountVectorizer(vocabulary=count_v0.vocabulary_)
@@ -59,23 +44,18 @@ def text_filter_for_sklearn():
     x_test = test_data
     y_test = test_labels
 
-    clf = MultinomialNB(alpha=0.1)
+    clf = get_best_params(x_train, y_train)
     clf.fit(x_train, y_train)
-    preds = clf.predict(x_test)
-    # print(preds)
+    predict = clf.predict(x_test)
+    # print(test_line)
+    # print(predict)
 
-    return preds, y_test
-
-
-def predictions():
-    preds, y_test = text_filter_for_sklearn()
-    num = 0
-
-    for i, pred in enumerate(preds.tolist()):
-        if int(pred) == int(y_test[i]):
-            num += 1
-    print('precision_score:' + str(float(num) / len(preds)))
+    score = accuracy_score(y_test, predict)
+    print('\nprecision_score:' + str(score))
 
 
 if __name__ == '__main__':
-    predictions()
+    train_line, train_labels = word.word_process("../filter_data/train/")
+    test_line, test_labels = word.word_process("../filter_data/test/")
+
+    text_filter_for_sklearn(train_line, train_labels, test_line, test_labels)
